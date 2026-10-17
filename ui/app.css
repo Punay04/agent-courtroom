@@ -1,0 +1,137 @@
+@import "tailwindcss";
+@source "./**/*.{tsx,html}";
+
+@theme {
+  --font-sans: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-serif: "Crimson Text", Palatino, "Palatino Linotype", serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-canvas: #0a0a0a;
+  --color-surface: #141414;
+  --color-raise: #1c1c1c;
+  --color-line: #333333;
+  --color-ink: #f5f5f5;
+  --color-muted: #a3a3a3;
+  --color-trace: #93938a;
+  --color-phosphor: #c7ff3e;
+  --color-phosphor-ink: #14180a;
+}
+
+@layer base {
+  html {
+    color-scheme: dark;
+    background: #0a0a0a;
+    font-optical-sizing: auto;
+  }
+
+  body {
+    margin: 0;
+    background: #0a0a0a;
+    color: #f5f5f5;
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.5;
+    text-rendering: optimizeLegibility;
+  }
+
+  ::selection {
+    background: color-mix(in srgb, #c7ff3e 32%, transparent);
+    color: #f5f5f5;
+  }
+
+  input,
+  textarea {
+    caret-color: #c7ff3e;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: #333333 transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    background: #333333;
+    border-radius: 4px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  :focus-visible {
+    outline: 1px solid #c7ff3e;
+    outline-offset: 2px;
+  }
+
+  button:active:not(:disabled) {
+    transform: scale(0.97);
+    transition: transform 100ms ease-out;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+
+    button:active:not(:disabled) {
+      transform: none;
+    }
+
+    .caret-blink {
+      animation: none;
+    }
+  }
+}
+
+@utility desk-shadow {
+  box-shadow: 0 10px 24px -6px rgb(0 0 0 / 0.34);
+}
+
+.hljs {
+  background: transparent;
+  color: #f5f5f5;
+}
+
+.hljs-comment,
+.hljs-quote {
+  color: #a3a3a3;
+}
+
+.hljs-keyword,
+.hljs-selector-tag,
+.hljs-built_in,
+.hljs-type {
+  color: #f5f5f5;
+  font-weight: 500;
+}
+
+.hljs-string,
+.hljs-attr {
+  color: #e7e7df;
+}
+
+.hljs-number,
+.hljs-literal {
+  color: #c7ff3e;
+}
+
+.hljs-title,
+.hljs-function,
+.hljs-name {
+  color: #f5f5f5;
+}
+
+@keyframes caret-blink {
+  50% {
+    opacity: 0.25;
+  }
+}
+
+.caret-blink {
+  animation: caret-blink 0.9s steps(1) infinite;
+}

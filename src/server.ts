@@ -1,11 +1,19 @@
 import { existsSync } from "node:fs";
 import { normalize } from "node:path";
+import docketPage from "../ui/docket.html";
+import courtroomPage from "../ui/trial.html";
 import { config, missingConfig } from "./config";
 import { reapOrphans } from "./courthouse";
 import { listRecordings, readRecording, summarize } from "./events";
 import { canWrite, verifySignature } from "./github";
 import { getTrial, liveTrials, summon, trialUrl } from "./trial";
 import type { StampedEvent } from "./types";
+
+const styles = Bun.spawn([process.execPath, "x", "@tailwindcss/cli", "-i", "ui/app.css", "-o", "ui/compiled.css"], {
+  stdout: "inherit",
+  stderr: "inherit",
+});
+if ((await styles.exited) !== 0) console.warn("Tailwind did not compile. The desk will load without its styles.");
 
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 
@@ -114,12 +122,18 @@ function serveStatic(pathname: string): Response {
 const server = Bun.serve({
   port: config.port,
   idleTimeout: 255, // SSE streams outlive Bun's 10 s default; we also ping every 15 s.
+  routes: {
+    "/": docketPage,
+    "/trial/:id": courtroomPage,
+  },
+  development: {
+    hmr: true,
+    console: true,
+  },
   async fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;
     try {
-      if (req.method === "GET" && path === "/") return new Response(Bun.file("public/index.html"));
-      if (req.method === "GET" && /^\/trial\/[\w-]+$/.test(path)) return new Response(Bun.file("public/trial.html"));
       if (req.method === "GET" && path === "/api/health")
         return json({ missing: missingConfig(), githubWrite: canWrite(), publicUrl: config.publicUrl, models: { counsel: config.counselModel, judge: config.judgeModel } });
       if (req.method === "GET" && path === "/api/trials") return json(listAll());
@@ -132,6 +146,11 @@ const server = Bun.serve({
       const m = path.match(/^\/api\/trials\/([\w-]+)\/events$/);
       if (req.method === "GET" && m) return trialEvents(m[1]!, req);
       if (req.method === "POST" && path === "/api/github/webhook") return await webhook(req);
+      if (req.method === "GET" && path === "/ui/compiled.css") {
+        return new Response(Bun.file("ui/compiled.css"), {
+          headers: { "Content-Type": "text/css; charset=utf-8", "Cache-Control": "no-cache" },
+        });
+      }
       if (req.method === "GET" && path.startsWith("/public/")) return serveStatic(path.slice("/public".length));
       return new Response("not found", { status: 404 });
     } catch (e: any) {

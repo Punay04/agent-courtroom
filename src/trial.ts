@@ -43,7 +43,10 @@ export async function summon(prUrl: string): Promise<TrialRecord> {
   bus.emit({ t: "trial_start", id, pr, startedAt: record.startedAt });
   if (waiting > 0) bus.emit({ t: "status", message: `Waiting for the courtroom (${waiting} trial(s) ahead)…` });
   waiting++;
-  queue = queue.then(() => runTrial(record)).finally(() => waiting--);
+  queue = queue
+    .then(() => runTrial(record))
+    .catch((e) => console.error("[trial] queue error:", e))
+    .finally(() => waiting--);
   return record;
 }
 
@@ -100,6 +103,8 @@ export async function conductTrial(
   try {
     const changedFiles = [...diff.matchAll(/^diff --git a\/(\S+) b\//gm)].map((m) => m[1]!);
     const chargeSheet = fileCharges(pr, diff);
+    // Sandbox setup can throw before this is awaited. A handler here keeps that rejection from crashing the process.
+    void chargeSheet.catch(() => {});
 
     status("Summoning two CreateOS micro-VMs…");
     // CreateOS sandbox names max out at 22 chars.

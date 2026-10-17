@@ -145,11 +145,15 @@ export async function jsonTurn<T extends z.ZodType>(
 ): Promise<z.infer<T>> {
   let lastErr: unknown;
   for (let attempt = 0; attempt < 2; attempt++) {
+    const contents =
+      attempt === 0
+        ? input
+        : `${input}\n\nYour previous reply was not valid JSON for the required schema (${String(lastErr).slice(0, 500)}). Reply with only the JSON object.`;
     const res = await withRetry(
       () =>
         client().models.generateContent({
           model,
-          contents: input,
+          contents,
           config: {
             systemInstruction: system,
             responseMimeType: "application/json",

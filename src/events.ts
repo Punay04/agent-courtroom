@@ -42,10 +42,16 @@ export interface TrialSummary {
 export function readRecording(id: string): StampedEvent[] | null {
   const path = `${RECORDINGS}/${id}.jsonl`;
   if (!/^[\w-]+$/.test(id) || !existsSync(path)) return null;
-  return readFileSync(path, "utf8")
-    .split("\n")
-    .filter(Boolean)
-    .map((l) => JSON.parse(l));
+  const events: StampedEvent[] = [];
+  for (const line of readFileSync(path, "utf8").split("\n")) {
+    if (!line.trim()) continue;
+    try {
+      events.push(JSON.parse(line));
+    } catch {
+      // The last line can be partial while a trial is still appending to the file.
+    }
+  }
+  return events.length ? events : null;
 }
 
 export function summarize(id: string, events: StampedEvent[], live: boolean): TrialSummary {

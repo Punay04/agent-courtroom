@@ -5,6 +5,8 @@ node_modules
 out
 dist
 *.tgz
+ui/compiled.css
+.tmp-ui
 
 # code coverage
 coverage
