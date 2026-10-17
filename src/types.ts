@@ -1,4 +1,15 @@
 export type Role = "prosecution" | "defense";
+export type StackKind = "python" | "node" | "go" | "rust" | "make" | "unknown";
+export type ExhibitLanguage = "python" | "bash" | "javascript" | "typescript";
+
+export interface StackInfo {
+  kind: StackKind;
+  manager: string;
+  testCommand: string | null;
+  framework: string;
+  detected: StackKind[];
+  nodeTestScript: string;
+}
 export type Checkout = "head" | "base";
 
 export interface PRInfo {
@@ -28,7 +39,7 @@ export interface Exhibit {
   side: Role;
   round: number;
   argument: string;
-  language: "python" | "bash";
+  language: ExhibitLanguage;
   checkout: Checkout | "both";
   code: string;
   results: { checkout: Checkout; result: ExecResult }[];
@@ -36,6 +47,8 @@ export interface Exhibit {
 
 export interface TestSummary {
   checkout: Checkout;
+  framework: string;
+  unit: string;
   passed: number;
   failed: number;
   errors: number;

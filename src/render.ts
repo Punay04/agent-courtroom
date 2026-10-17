@@ -11,6 +11,13 @@ const RECOMMENDATION: Record<Verdict["recommendation"], string> = {
   needs_human_review: "Needs human review",
 };
 
+const REPRO_CMD: Record<Exhibit["language"], string> = {
+  python: "PYTHONPATH=.:src python3 repro.py",
+  javascript: "node repro.mjs",
+  typescript: "bun run repro.ts",
+  bash: "bash repro.sh",
+};
+
 const cell = (s: string) => s.replace(/\|/g, "\\|").replace(/\n/g, " ").slice(0, 140);
 
 function run(r: ExecResult | undefined): string {
@@ -50,14 +57,16 @@ export function renderVerdict(v: Verdict, exhibits: Exhibit[], tests: TestSummar
 
   const decisive = exhibits.find((e) => e.id === v.decisive_exhibit);
   const repro = decisive
-    ? `\n<details><summary>🔁 Reproducer: Exhibit ${decisive.id}, exactly as executed</summary>\n\n${fence(decisive.code, decisive.language)}\n\nRun from the repo root: \`PYTHONPATH=. ${decisive.language === "python" ? "python3" : "bash"} repro.${decisive.language === "python" ? "py" : "sh"}\`\n</details>\n`
+    ? `\n<details><summary>🔁 Reproducer: Exhibit ${decisive.id}, exactly as executed</summary>\n\n${fence(decisive.code, decisive.language)}\n\nSave it at the repo root and run: \`${REPRO_CMD[decisive.language]}\`\n</details>\n`
     : "";
 
   const blocking = v.blocking_issues.length
     ? `\n### Blocking issues\n${v.blocking_issues.map((b) => `- **${b.title}** (Exhibit ${b.exhibit_id})`).join("\n")}\n`
     : "";
 
-  const suite = tests.map((t) => `${t.checkout}: ${t.passed} passed, ${t.failed} failed`).join(" · ");
+  const suite = tests
+    .map((t) => (t.framework === "none" ? `${t.checkout}: no test suite found` : `${t.checkout} (${t.framework}): ${t.passed} ${t.unit} passed, ${t.failed} failed`))
+    .join(" · ");
 
   return `## ⚖️ Agent Courtroom: ${RULING_LABEL[v.ruling]}
 

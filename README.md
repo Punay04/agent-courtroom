@@ -19,6 +19,20 @@ Browser ◀── SSE ── live courtroom at /trial/:id
 3. **Two rounds, prosecution and defense in parallel.** Each side can `inspect` the repo (not evidence) and file up to 3 `run_exhibit`s per round. `checkout: both` runs the same script on base and head, which proves regressions or pre-existing conditions.
 4. **Judge:** rules BROKEN / UPHELD / INCONCLUSIVE from the raw evidence only.
 
+## Languages
+
+The bailiff detects the stack from marker files, weighted by which languages the PR touches:
+
+| Stack | Detected by | Install | Exhibit 0 | Agents write exhibits in |
+|---|---|---|---|---|
+| Python | `requirements*.txt`, `pyproject.toml`, `setup.py`, `.py` files | pip (requirements + project extras `test/tests/testing/dev`) | `pytest` | python |
+| JS / TS | `package.json` | bun / pnpm / yarn / npm by lockfile, per checkout | `npm test` (or `bun test`) | javascript (node), typescript (bun) |
+| Go | `go.mod` | `go mod download` | `go test ./...` | bash → temporary `_test.go` |
+| Rust | `Cargo.toml` | `cargo fetch` | `cargo test` | bash → temporary `tests/*.rs` |
+| C / C++ | `Makefile` with `test:` | none | `make test` | bash (gcc, g++, make) |
+
+Sandbox egress is limited to PyPI, npm, the Go module proxy and crates.io.
+
 ## Run it
 
 ```bash

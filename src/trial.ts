@@ -111,17 +111,17 @@ export async function conductTrial(
       const why = created.map((c) => (c.status === "rejected" ? String(c.reason?.message ?? c.reason) : "")).filter(Boolean);
       throw new Error(`Could not create sandboxes: ${why.join("; ")}`);
     }
-    status(`Sandboxes ready: prosecution ${p.id}, defense ${d.id}. Unpacking the case files…`);
-    const [prepP] = await Promise.all([prepareSandbox(p, { base, head }), prepareSandbox(d, { base, head })]);
-
-    status("Running the existing test suite on base and head (Exhibit 0)…");
-    const tests = await Promise.all([runTestSuite(p, "base"), runTestSuite(d, "head")]);
+    status(`Sandboxes ready: prosecution ${p.id}, defense ${d.id}. Unpacking the case files and installing dependencies…`);
+    const [prepP] = await Promise.all([prepareSandbox(p, { base, head }, changedFiles), prepareSandbox(d, { base, head }, changedFiles)]);
+    const stack = prepP.stack;
+    status(`Detected ${stack.kind}${stack.manager ? ` (${stack.manager})` : ""}. Running the existing tests on base and head (Exhibit 0: ${stack.testCommand ?? "no test command found"})…`);
+    const tests = await Promise.all([runTestSuite(p, "base", stack), runTestSuite(d, "head", stack)]);
     emit({ t: "exhibit0", tests });
 
     const charge = await chargeSheet;
     emit({ t: "charge", sheet: charge });
 
-    const ctx: CaseContext = { pr, diff, changedFiles, charge, tests, tools: prepP.tools };
+    const ctx: CaseContext = { pr, diff, changedFiles, charge, tests, tools: prepP.tools, stack };
     const exhibits: Exhibit[] = [];
     const statements: { role: Role; round: number; statement: string }[] = [];
     const counters: Record<Role, number> = { prosecution: 0, defense: 0 };

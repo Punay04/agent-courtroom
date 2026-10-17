@@ -17,8 +17,11 @@ export const config = {
   stream: process.env.LLM_STREAM !== "0",
   shape: process.env.SANDBOX_SHAPE ?? "s-1vcpu-1gb",
   rootfs: process.env.SANDBOX_ROOTFS ?? "devbox:1",
-  // Empty SANDBOX_EGRESS means allow-all (CreateOS semantics). Default: PyPI only.
-  egress: (process.env.SANDBOX_EGRESS ?? "pypi.org:443,*.pythonhosted.org:443")
+  // Empty SANDBOX_EGRESS means allow-all (CreateOS semantics). Default: package registries only.
+  egress: (
+    process.env.SANDBOX_EGRESS ??
+    "pypi.org:443,*.pythonhosted.org:443,registry.npmjs.org:443,registry.yarnpkg.com:443,proxy.golang.org:443,sum.golang.org:443,crates.io:443,*.crates.io:443"
+  )
     .split(",")
     .map((s) => s.trim())
     .filter(Boolean),

@@ -25,7 +25,7 @@ function stick(feed, fn) {
 
 function highlight(code, lang) {
   try {
-    return hljs.highlight(code, { language: lang === "bash" ? "bash" : "python" }).value;
+    return hljs.highlight(code, { language: { bash: "bash", javascript: "javascript", typescript: "typescript" }[lang] ?? "python" }).value;
   } catch {
     return esc(code);
   }
@@ -73,8 +73,14 @@ const handlers = {
     status(e.message);
   },
   exhibit0(e) {
-    const cells = e.tests.map((t) => `<div><b>${t.passed}✓ ${t.failed ? t.failed + "✗" : ""}</b>${t.checkout}</div>`).join("");
-    bench.appendChild(el("div", "card", `<h4>Exhibit 0 · existing test suite</h4><div class="tests">${cells}</div>`));
+    const score = (t) => {
+      if (t.framework === "none") return "—";
+      if (t.passed || t.failed) return `${t.passed}✓ ${t.failed ? t.failed + "✗" : ""}`;
+      return t.exit_code === 0 ? "pass ✓" : t.exit_code === 124 ? "timeout" : `exit ${t.exit_code} ✗`;
+    };
+    const cells = e.tests.map((t) => `<div><b>${score(t)}</b>${t.checkout}</div>`).join("");
+    const fw = e.tests[0]?.framework && e.tests[0].framework !== "none" ? ` · ${esc(e.tests[0].framework)}` : " · none found";
+    bench.appendChild(el("div", "card", `<h4>Exhibit 0 · existing tests${fw}</h4><div class="tests">${cells}</div>`));
   },
   charge(e) {
     const s = e.sheet;
