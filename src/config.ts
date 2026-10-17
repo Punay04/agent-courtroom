@@ -1,0 +1,33 @@
+// Bun loads .env automatically.
+const port = Number(process.env.PORT ?? 3000);
+
+export const config = {
+  port,
+  publicUrl: (process.env.PUBLIC_URL || `http://localhost:${port}`).replace(/\/$/, ""),
+  geminiKey: process.env.GEMINI_API_KEY ?? "",
+  githubToken: process.env.GITHUB_TOKEN ?? "",
+  webhookSecret: process.env.WEBHOOK_SECRET ?? "",
+  counselModel: process.env.COUNSEL_MODEL ?? "gemini-3.8-flash",
+  clerkModel: process.env.CLERK_MODEL ?? "gemini-3.8-flash",
+  judgeModel: process.env.JUDGE_MODEL ?? "gemini-4-argon",
+  counselThinking: process.env.COUNSEL_THINKING ?? "low",
+  stream: process.env.LLM_STREAM !== "0",
+  shape: process.env.SANDBOX_SHAPE ?? "s-1vcpu-1gb",
+  rootfs: process.env.SANDBOX_ROOTFS ?? "devbox:1",
+  // Empty SANDBOX_EGRESS means allow-all (CreateOS semantics). Default: PyPI only.
+  egress: (process.env.SANDBOX_EGRESS ?? "pypi.org:443,*.pythonhosted.org:443")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+  rounds: Number(process.env.ROUNDS ?? 2),
+  maxExhibitsPerTurn: Number(process.env.MAX_EXHIBITS ?? 3),
+  maxInspectsPerTurn: Number(process.env.MAX_INSPECTS ?? 8),
+  exhibitTimeoutSec: Number(process.env.EXHIBIT_TIMEOUT ?? 30),
+};
+
+export function missingConfig(): string[] {
+  const missing: string[] = [];
+  if (!config.geminiKey) missing.push("GEMINI_API_KEY");
+  if (!process.env.CREATEOS_SANDBOX_API_KEY) missing.push("CREATEOS_SANDBOX_API_KEY");
+  return missing;
+}

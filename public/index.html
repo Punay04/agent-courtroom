@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Agent Courtroom</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;700;800&family=Playfair+Display:wght@700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="/public/style.css" />
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">⚖️ Agent <span>Courtroom</span></div>
+    <div class="spacer"></div>
+    <div class="pill" id="health">checking…</div>
+  </div>
+
+  <main class="docket">
+    <section class="hero">
+      <h1>Every pull request gets a trial.</h1>
+      <p>A prosecutor agent writes code to break the PR. A defender agent writes code to prove it. Both run in isolated CreateOS micro-VMs, side by side. A judge rules on exit codes and timings, not opinions.</p>
+    </section>
+
+    <form class="summon" id="summon">
+      <input id="prUrl" placeholder="https://github.com/owner/repo/pull/123" autocomplete="off" required />
+      <button id="summonBtn" type="submit">Summon the court</button>
+    </form>
+
+    <div class="score">
+      <div class="p"><b id="sP">0</b><span>Broken (prosecution wins)</span></div>
+      <div class="d"><b id="sD">0</b><span>Upheld (defense wins)</span></div>
+      <div class="i"><b id="sI">0</b><span>Inconclusive</span></div>
+    </div>
+
+    <div class="cases" id="cases"><div class="empty">No trials yet. Open a PR on a connected repo, or paste one above.</div></div>
+  </main>
+
+  <script>
+    const LABEL = { BROKEN: "BROKEN", UPHELD: "UPHELD", INCONCLUSIVE: "INCONCLUSIVE", in_session: "IN SESSION", error: "MISTRIAL" };
+    const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+
+    async function load() {
+      const rows = await fetch("/api/trials").then((r) => r.json()).catch(() => []);
+      const count = (s) => rows.filter((r) => r.status === s).length;
+      sP.textContent = count("BROKEN");
+      sD.textContent = count("UPHELD");
+      sI.textContent = count("INCONCLUSIVE");
+      if (!rows.length) return;
+      cases.innerHTML = rows
+        .map(
+          (r) => `<a class="case" href="/trial/${r.id}">
+            <span class="chip ${r.status}">${LABEL[r.status] ?? r.status}</span>
+            <div class="meta">
+              <div class="title">${esc(r.pr.title)}</div>
+              <div class="sub">${esc(r.pr.owner)}/${esc(r.pr.repo)} #${r.pr.number}${r.headline ? " · " + esc(r.headline) : ""}</div>
+            </div>
+            <span class="pill">${r.startedAt ? new Date(r.startedAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : ""}</span>
+          </a>`,
+        )
+        .join("");
+    }
+
+    async function health() {
+      const h = await fetch("/api/health").then((r) => r.json()).catch(() => null);
+      if (!h) return (healthEl.textContent = "server offline");
+      healthEl.textContent = h.missing.length ? `missing: ${h.missing.join(", ")}` : `${h.models.counsel} · judge ${h.models.judge}${h.githubWrite ? " · GitHub ✓" : ""}`;
+    }
+    const healthEl = document.getElementById("health");
+
+    summon.addEventListener("submit", async (ev) => {
+      ev.preventDefault();
+      summonBtn.disabled = true;
+      summonBtn.textContent = "Summoning…";
+      try {
+        const res = await fetch("/api/trials", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ prUrl: prUrl.value }) });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error);
+        location.href = `/trial/${data.id}`;
+      } catch (e) {
+        alert(e.message);
+        summonBtn.disabled = false;
+        summonBtn.textContent = "Summon the court";
+      }
+    });
+
+    load();
+    health();
+    setInterval(load, 5000);
+  </script>
+</body>
+</html>
