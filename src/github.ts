@@ -78,9 +78,32 @@ export function github(token?: string): GitHubClient {
       return (await gh(`/repos/${pr.owner}/${pr.repo}/pulls/${pr.number}`, {}, "application/vnd.github.diff")).text();
     },
 
-    /** Downloaded on the host so the token never enters a sandbox. The base repo serves fork head commits too. */
+    /**
+     * Downloaded on the host so the token never enters a sandbox. The base repo serves fork head commits too.
+     * Capped at MAX_REPO_MB while streaming (GitHub often sends no Content-Length): one huge repo would otherwise
+     * run the single server out of memory and take every other trial down with it.
+     */
     async getTarball(pr, sha) {
-      return (await gh(`/repos/${pr.owner}/${pr.repo}/tarball/${sha}`)).arrayBuffer();
+      const res = await gh(`/repos/${pr.owner}/${pr.repo}/tarball/${sha}`);
+      const limit = config.maxRepoMb * 1024 * 1024;
+      const tooBig = () =>
+        new Error(`${pr.owner}/${pr.repo} is too big for this courtroom: its source archive is over ${config.maxRepoMb} MB (MAX_REPO_MB).`);
+      if (Number(res.headers.get("content-length") ?? 0) > limit) {
+        await res.body?.cancel();
+        throw tooBig();
+      }
+      const reader = res.body!.getReader();
+      const chunks: Uint8Array[] = [];
+      let size = 0;
+      for (let r = await reader.read(); !r.done; r = await reader.read()) {
+        size += r.value.byteLength;
+        if (size > limit) {
+          await reader.cancel();
+          throw tooBig();
+        }
+        chunks.push(r.value);
+      }
+      return Bun.concatArrayBuffers(chunks);
     },
 
     async upsertComment(pr, body, commentId) {

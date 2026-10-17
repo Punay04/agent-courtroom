@@ -21,6 +21,9 @@ export const config = {
   pollIntervalSec: Number(process.env.POLL_INTERVAL_SEC ?? 60),
   maxAutoTrialsPerHour: Number(process.env.MAX_AUTO_TRIALS_PER_HOUR ?? 10),
   maxConcurrentTrials: Number(process.env.MAX_CONCURRENT_TRIALS ?? 2),
+  // Largest compressed source archive a trial downloads, per checkout. Each is held in memory for the whole trial,
+  // so the server can hold 2 × MAX_CONCURRENT_TRIALS of them at once.
+  maxRepoMb: Number(process.env.MAX_REPO_MB ?? 50),
   counselModel: process.env.COUNSEL_MODEL || "gemini-3.5-flash-lite",
   clerkModel: process.env.CLERK_MODEL || "gemini-3.5-flash-lite",
   judgeModel: process.env.JUDGE_MODEL || "gemini-3.8-flash",
