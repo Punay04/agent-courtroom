@@ -15,7 +15,7 @@ Audience: a developer running Agent Courtroom locally. Job: place a pull request
 
 THESIS: A tally desk with two open books and a stamp. It refuses the metric-card dashboard and the cartoon courtroom.
 
-OWN-WORLD: Screenpipe dark contract, translated from the tally desk's paper. Canvas #0A0A0A, work surface #141414, line #333333, ink #F5F5F5, secondary #A3A3A3, trace evidence #8A8A80, phosphor #C7FF3E only while a side is executing or the judge is weighing. Space Grotesk for the interface, Crimson Text for argument and the verdict headline, IBM Plex Mono for code, commands, shas, and timings. Work surfaces 8px, controls 6px, the window edge and the verdict seal sharp. Elevation is a soft vertical shadow, never a hard offset.
+OWN-WORLD: Screenpipe on a white coding desk. Bone canvas #F4F4F0, white panels, line #E2E2DA, ink #0A0A0A, secondary #5C5C56. Phosphor #C7FF3E is a fill for live actions, the output label, and text selection, with #14180A text on it. Never phosphor as type on bone. Space Grotesk for the interface, IBM Plex Mono for code, commands, shas, and timings. The top bar stays. Controls 6px. Elevation is a soft black shadow.
 
 STORY: The operator sees an empty desk, sets a pull request on it, and watches two books fill with runs. They leave knowing the ruling came from exit codes and output.
 

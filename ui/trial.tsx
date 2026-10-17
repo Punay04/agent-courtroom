@@ -9,13 +9,11 @@ import typescript from "highlight.js/lib/languages/typescript";
 import "@fontsource/space-grotesk/latin-400.css";
 import "@fontsource/space-grotesk/latin-500.css";
 import "@fontsource/space-grotesk/latin-600.css";
-import "@fontsource/crimson-text/latin-400.css";
-import "@fontsource/crimson-text/latin-400-italic.css";
-import "@fontsource/crimson-text/latin-600.css";
+import "@fontsource/space-grotesk/latin-700.css";
 import "@fontsource/ibm-plex-mono/latin-400.css";
 import "@fontsource/ibm-plex-mono/latin-500.css";
 import { IconChevron, IconExternal, IconReplay } from "./icons.tsx";
-import { Shell, useHealth } from "./shell.tsx";
+import { Shell } from "./shell.tsx";
 import {
   initialCourt,
   reduceCourt,
@@ -46,7 +44,7 @@ function reducer(state: CourtState, action: Action): CourtState {
     ...state,
     missing: true,
     title: "This trial is not on the desk.",
-    sub: "The address may be wrong or the recording is gone. Trials on private repositories are visible only to the GitHub account that ran them, so sign in with that account.",
+    sub: "The address may be wrong or the recording is gone. Each trial is visible only to the GitHub account that started it, so sign in with that account.",
     chip: "Missing",
     chipTone: "quiet",
   };
@@ -90,7 +88,7 @@ const land = { type: "spring" as const, bounce: 0.18, duration: 0.45 };
 function Mark({ live, bead, reduce }: { live: boolean; bead: boolean; reduce: boolean | null }) {
   if (!live && !bead) return null;
   return (
-    <span className="relative mt-2 block h-px w-full bg-line">
+    <span className="relative mt-2 block h-0.5 w-full bg-line">
       <motion.span
         className="absolute inset-y-0 left-0 origin-left bg-phosphor"
         initial={false}
@@ -100,7 +98,7 @@ function Mark({ live, bead, reduce }: { live: boolean; bead: boolean; reduce: bo
       {bead ? (
         <motion.span
           layoutId={reduce ? undefined : "bead"}
-          className="absolute -top-[3px] left-0 size-1.5 bg-phosphor"
+          className="absolute -top-[3px] left-0 size-2 border border-ink bg-phosphor"
           transition={reduce ? { duration: 0.15 } : settle}
         />
       ) : null}
@@ -130,7 +128,7 @@ function CodeWell({ code, language }: { code: string; language: string }) {
       if (count < code.length) {
         node.textContent = code.slice(0, count);
         const caret = document.createElement("span");
-        caret.className = "caret-blink ml-px inline-block h-[1em] w-px translate-y-px bg-phosphor align-text-bottom";
+        caret.className = "caret-blink ml-px inline-block h-[1em] w-px translate-y-px bg-ink align-text-bottom";
         node.appendChild(caret);
         node.scrollTop = node.scrollHeight;
         frame = requestAnimationFrame(tick);
@@ -144,10 +142,7 @@ function CodeWell({ code, language }: { code: string; language: string }) {
   }, [code, language, reduce]);
 
   return (
-    <pre
-      ref={pre}
-      className="mt-3 max-h-64 overflow-auto bg-canvas px-3 py-2.5 font-mono text-[12px] leading-relaxed text-ink"
-    />
+    <pre ref={pre} className="code-well" />
   );
 }
 
@@ -155,30 +150,33 @@ function ExhibitView({ exhibit }: { exhibit: ExhibitBlock }) {
   return (
     <article
       id={`exhibit-${exhibit.id}`}
-      className={`border-b border-line py-4 ${exhibit.decisive ? "desk-shadow -mx-4 border border-phosphor bg-raise px-4" : ""}`}
+      className={`border-b border-line py-4 ${exhibit.decisive ? "desk-shadow -mx-4 border border-ink bg-raise px-4" : ""}`}
     >
-      <p className="font-serif text-[1.125rem] leading-snug text-ink italic">“{exhibit.argument}”</p>
+      <p className="font-serif text-[1.125rem] leading-snug font-medium tracking-[-0.02em] text-ink">“{exhibit.argument}”</p>
       <p className="mt-1 font-mono text-[12px] text-muted">
         {exhibit.id} · {exhibit.checkout}
       </p>
       <CodeWell code={exhibit.code} language={exhibit.language} />
-      {exhibit.terminal.length > 0 ? (
-        <pre className="mt-px max-h-52 overflow-auto bg-[#070707] px-3 py-2.5 font-mono text-[12px] leading-relaxed whitespace-pre-wrap text-[#d6d6d0]">
-          {exhibit.terminal.map((part) => (
-            <span key={part.key} className={part.kind === "err" ? "font-medium text-ink" : part.kind === "label" ? "text-muted" : undefined}>
-              {part.text}
-            </span>
-          ))}
-        </pre>
-      ) : (
-        <div className="mt-px bg-[#070707] px-3 py-2.5 font-mono text-[12px] text-muted">Waiting for output</div>
-      )}
+      <div className="term">
+        <div className="term-label">Output</div>
+        {exhibit.terminal.length > 0 ? (
+          <pre className="term-body">
+            {exhibit.terminal.map((part) => (
+              <span key={part.key} className={part.kind === "err" ? "font-medium text-warn" : part.kind === "label" ? "text-muted" : undefined}>
+                {part.text}
+              </span>
+            ))}
+          </pre>
+        ) : (
+          <div className="term-body">Waiting for output</div>
+        )}
+      </div>
       <ul className="mt-2 flex flex-wrap gap-1.5">
         {exhibit.badges.map((badge) => (
           <li
             key={badge.checkout}
             title={badge.title}
-            className={`rounded-[6px] border border-line px-2 py-0.5 font-mono text-[11px] ${badge.running ? "text-phosphor" : "text-muted"}`}
+            className={`rounded-[6px] border px-2 py-0.5 font-mono text-[11px] ${badge.running ? "border-ink bg-phosphor text-phosphor-ink" : "border-line text-muted"}`}
           >
             {badge.checkout.startsWith("judge-") ? badge.text : `${badge.checkout} · ${badge.text}`}
           </li>
@@ -217,7 +215,7 @@ function Blocks({
         }
         if (block.kind === "typing") {
           return (
-            <pre key={block.id} className="max-h-56 overflow-auto font-mono text-[12px] whitespace-pre-wrap text-muted">
+            <pre key={block.id} className="code-well">
               {block.code}
             </pre>
           );
@@ -235,7 +233,7 @@ function Blocks({
                 <span className="min-w-0 truncate">{block.command}</span>
               </button>
               {block.open ? (
-                <pre className="mt-2 max-h-56 overflow-auto font-mono text-[12px] whitespace-pre-wrap text-ink">{block.output}</pre>
+                <pre className="term-body mt-2 rounded-[6px] border border-ink bg-term">{block.output}</pre>
               ) : null}
             </div>
           );
@@ -276,7 +274,7 @@ function Book({
       <header className="border-b border-line px-4 pt-3 pb-2.5">
         <div className="flex items-baseline justify-between gap-3">
           <h2 className="text-[15px] font-medium tracking-[-0.02em]">{title}</h2>
-          <span className={`font-mono text-[12px] ${book.active ? "text-phosphor" : "text-muted"}`}>{book.phase}</span>
+          <span className={`font-mono text-[12px] ${book.active ? "text-ink" : "text-muted"}`}>{book.phase}</span>
         </div>
         <Mark live={book.active} bead={bead} reduce={reduce} />
       </header>
@@ -308,7 +306,6 @@ function Feed({
 }
 
 function Trial() {
-  const health = useHealth();
   const reduce = useReducedMotion();
   const [state, dispatch] = useReducer(reducer, initialCourt);
   const dismissRef = useRef<HTMLButtonElement>(null);
@@ -375,19 +372,19 @@ function Trial() {
 
   return (
     <>
-      <Shell health={health.text} ready={health.ready} inert={!!state.overlay}>
+      <Shell inert={!!state.overlay}>
         <div className="flex flex-col gap-3 border-b border-line px-4 py-4 sm:px-6 lg:flex-row lg:items-start lg:justify-between">
           <div className="min-w-0">
-            <h1 className="text-[1.35rem] leading-tight font-medium tracking-[-0.03em]">{state.title}</h1>
+            <h1 className="font-serif text-[1.35rem] leading-tight font-medium tracking-[-0.04em]">{state.title}</h1>
             <p className="mt-1 font-mono text-[12px] text-muted">{state.sub}</p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            <span className={`font-mono text-[12px] ${state.chipTone === "live" ? "text-phosphor" : state.chipTone === "settled" ? "text-ink" : "text-muted"}`}>
+            <span className={`font-mono text-[12px] ${state.chipTone === "live" ? "bg-phosphor px-1.5 py-0.5 text-phosphor-ink" : state.chipTone === "settled" ? "text-ink" : "text-muted"}`}>
               {state.chip}
             </span>
             {state.prUrl ? (
               <>
-                <a href={replay} className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-line px-3 text-[13px] no-underline hover:bg-ink hover:text-canvas">
+                <a href={replay} className="inline-flex h-9 items-center gap-2 rounded-[7px] border border-line px-3 text-[13px] no-underline hover:border-edge hover:bg-hover hover:text-ink">
                   <IconReplay />
                   Replay
                 </a>
@@ -395,7 +392,7 @@ function Trial() {
                   href={state.prUrl}
                   target="_blank"
                   rel="noopener"
-                  className="inline-flex h-9 items-center gap-2 rounded-[6px] border border-line px-3 text-[13px] no-underline hover:bg-ink hover:text-canvas"
+                  className="inline-flex h-9 items-center gap-2 rounded-[7px] border border-line px-3 text-[13px] no-underline hover:border-edge hover:bg-hover hover:text-ink"
                 >
                   <IconExternal />
                   Pull request
@@ -412,9 +409,9 @@ function Trial() {
               type="button"
               aria-pressed={pane === id}
               onClick={() => setPane(id)}
-              className={`inline-flex h-9 items-center gap-2 rounded-[6px] border px-3 text-[13px] ${pane === id ? "border-ink bg-ink text-canvas" : "border-line text-muted"}`}
+              className={`inline-flex h-9 items-center gap-2 rounded-[7px] border px-3 text-[13px] ${pane === id ? "border-phosphor bg-phosphor text-phosphor-ink" : "border-line text-muted"}`}
             >
-              {live ? <span className="size-1.5 bg-phosphor" /> : null}
+              {live ? <span className={`size-1.5 ${pane === id ? "bg-phosphor-ink" : "bg-phosphor"}`} /> : null}
               {label}
             </button>
           ))}
@@ -496,7 +493,7 @@ function Trial() {
                     return (
                       <div key={card.id} className="border-b border-line py-4" role="alert">
                         <h3 className="text-[15px] font-medium">Mistrial</h3>
-                        <p className="mt-2 text-[14px] leading-relaxed">{card.message}</p>
+                        <p className="mt-2 text-[14px] leading-relaxed text-warn">{card.message}</p>
                       </div>
                     );
                   }
@@ -539,7 +536,7 @@ function Trial() {
       <AnimatePresence>
         {state.overlay ? (
           <motion.div
-            className="fixed inset-0 z-20 flex items-center justify-center bg-black/80 p-6"
+            className="fixed inset-0 z-20 flex items-center justify-center bg-black/40 p-6"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -555,9 +552,9 @@ function Trial() {
               animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
               exit={reduce ? { opacity: 0 } : { opacity: 0, scale: 0.98, filter: "blur(6px)" }}
               transition={reduce ? { duration: 0.2 } : land}
-              className="w-full max-w-xl border border-ink bg-surface px-8 py-10 text-center"
+              className="w-full max-w-xl rounded-[12px] border border-ink bg-modal px-8 py-10 text-center"
             >
-              <h2 id="seal-title" className="text-[3rem] leading-none font-medium tracking-[-0.04em]">
+              <h2 id="seal-title" className="font-serif text-[3rem] leading-none font-medium tracking-[-0.04em]">
                 {state.overlay.label}
               </h2>
               <p className="mx-auto mt-5 max-w-[34ch] font-serif text-[1.35rem] leading-snug">{state.overlay.headline}</p>
@@ -565,7 +562,7 @@ function Trial() {
                 ref={dismissRef}
                 type="button"
                 onClick={() => dispatch({ t: "dismiss" })}
-                className="mt-8 rounded-[6px] border border-line px-4 py-2 text-[14px] hover:bg-ink hover:text-canvas"
+                className="mt-8 rounded-[7px] bg-phosphor px-4 py-2 text-[14px] font-medium text-phosphor-ink hover:bg-phosphor-hot"
               >
                 Dismiss
               </button>

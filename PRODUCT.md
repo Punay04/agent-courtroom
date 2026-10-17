@@ -32,11 +32,11 @@ Local Bun process, typically behind a public URL for GitHub webhooks. The operat
 - Courtroom: case title, PR link, replay, prosecution feed, defense feed, bench (clerk, exhibit 0, charge sheet, rounds, verdict), live speech, inspect output, exhibit code and terminal output, verdict overlay.
 - Rulings: BROKEN, UPHELD, INCONCLUSIVE. In session and mistrial are states, not rulings.
 - Do not invent customers, benchmarks, or capabilities the server does not have.
-- Visual constraint, user-binding: Screenpipe color contract (bone or ink canvas, charcoal work surfaces, trace for inactive evidence, phosphor `#C7FF3E` only for live execution) plus Tailwind, Motion, and Apple-style interruptible springs.
+- Visual constraint, user-binding: Screenpipe on a white coding desk. Bone canvas, white work surfaces, black text, phosphor `#C7FF3E` only as a fill for live actions and the output label (never as text on white). Space Grotesk for the interface, IBM Plex Mono for code and timings. Tailwind, Motion, and interruptible springs stay.
 
 ## Brand Commitments
 
-Name: Agent Courtroom. Voice in the product is direct and specific: summon, prosecution, defense, the bench, exhibit, verdict. Courtroom roles stay. The previous gold, red, and blue theme is not a commitment. Screenpipe's published palette and the request for a professional interface are binding.
+Name: Agent Courtroom. Voice in the product is direct and specific: summon, prosecution, defense, the bench, exhibit, verdict. Courtroom roles stay. The light Screenpipe coding desk the user asked for is binding.
 
 ## Evidence on Hand
 

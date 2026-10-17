@@ -1,41 +1,5 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-export function useHealth() {
-  const [text, setText] = useState("Checking the desk");
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    let stop = false;
-    const tick = async () => {
-      try {
-        const health = await fetch("/api/health").then((res) => res.json());
-        if (stop) return;
-        if (health.missing?.length) {
-          setReady(false);
-          setText(`Missing ${health.missing.join(", ")}`);
-          return;
-        }
-        setReady(true);
-        const github = health.githubWrite ? "GitHub connected" : "GitHub read only";
-        setText(`${health.models.counsel} · judge ${health.models.judge} · ${github}`);
-      } catch {
-        if (!stop) {
-          setReady(false);
-          setText("Server offline");
-        }
-      }
-    };
-    tick();
-    const id = setInterval(tick, 15000);
-    return () => {
-      stop = true;
-      clearInterval(id);
-    };
-  }, []);
-
-  return { text, ready };
-}
-
 export type Me = { login: string; name: string | null; avatar_url: string; autoTrial: boolean };
 
 /** Signed-in GitHub user (null when signed out); authEnabled is false when the server has no OAuth app configured. */
@@ -84,7 +48,7 @@ function Account() {
   return (
     <a
       href="/auth/github/login"
-      className="inline-flex h-9 items-center gap-2 rounded-[6px] bg-ink px-3 text-[13px] font-medium text-canvas no-underline hover:bg-[#d4d4d4]"
+      className="press inline-flex h-8 items-center gap-2 rounded-[7px] bg-phosphor px-3 text-[13px] font-medium text-phosphor-ink no-underline hover:bg-phosphor-hot"
     >
       <svg width="15" height="15" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
         <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
@@ -95,54 +59,30 @@ function Account() {
 }
 
 export function Shell({
-  health,
-  ready,
   inert,
   children,
 }: {
-  health: string;
-  ready: boolean;
   inert?: boolean;
   children: ReactNode;
 }) {
   return (
-    <div className="flex h-dvh bg-canvas text-ink" inert={inert || undefined}>
+    <div className="flex h-dvh flex-col bg-canvas text-ink" inert={inert || undefined}>
       <a
         href="#desk"
         className="sr-only focus:not-sr-only focus:absolute focus:left-3 focus:top-3 focus:z-50 focus:bg-ink focus:px-3 focus:py-2 focus:text-canvas"
       >
         Skip to the desk
       </a>
-      <aside className="hidden w-[232px] shrink-0 flex-col justify-between border-r border-line bg-surface p-6 md:flex">
-        <div>
-          <a href="/" className="block text-[1.35rem] leading-none font-medium tracking-[-0.03em] text-ink">
-            Agent Courtroom
-          </a>
-          <p className="mt-6 max-w-[18ch] font-serif text-[1.125rem] leading-snug text-ink">
-            Two sandboxes argue. The judge counts what actually ran.
-          </p>
-        </div>
-        <div className="flex flex-col gap-5">
+      <header className="chrome">
+        <a href="/" className="shrink-0 font-sans text-[15px] leading-none font-semibold tracking-[-0.04em] text-ink no-underline">
+          Agent Courtroom<span className="text-ink">.</span>
+        </a>
+        <div className="ml-auto flex shrink-0 items-center gap-3">
           <Account />
-          <p className="flex items-start gap-2 font-mono text-[12px] leading-relaxed text-muted">
-            <span className={`mt-1 size-1.5 shrink-0 ${ready ? "bg-phosphor" : "bg-trace"}`} />
-            <span>{health}</span>
-          </p>
         </div>
-      </aside>
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex items-center justify-between gap-4 border-b border-line px-4 py-3 md:hidden">
-          <a href="/" className="text-[15px] font-medium tracking-[-0.03em]">
-            Agent Courtroom
-          </a>
-          <div className="flex items-center gap-3">
-            <Account />
-            <span className={`size-1.5 ${ready ? "bg-phosphor" : "bg-trace"}`} title={health} />
-          </div>
-        </header>
-        <div id="desk" className="flex min-h-0 flex-1 flex-col">
-          {children}
-        </div>
+      </header>
+      <div id="desk" className="flex min-h-0 flex-1 flex-col">
+        {children}
       </div>
     </div>
   );

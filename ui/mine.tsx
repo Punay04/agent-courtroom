@@ -23,7 +23,7 @@ const LABEL: Record<Status, string> = {
 };
 
 const button =
-  "inline-flex h-8 shrink-0 items-center rounded-[6px] border border-line px-3 text-[13px] no-underline hover:bg-ink hover:text-canvas disabled:cursor-wait disabled:opacity-50";
+  "inline-flex h-8 shrink-0 items-center rounded-[7px] border border-line px-3 text-[13px] no-underline hover:border-edge hover:bg-hover hover:text-ink disabled:cursor-wait disabled:opacity-50";
 
 function ago(iso: string) {
   const s = (Date.now() - new Date(iso).getTime()) / 1000;
@@ -61,7 +61,7 @@ function PullRows({ pulls }: { pulls: Pull[] }) {
           className="grid grid-cols-1 items-center gap-x-4 gap-y-1 border-b border-line py-3 sm:grid-cols-[7.25rem_minmax(0,1fr)_auto] sm:px-2"
         >
           {p.trial ? (
-            <a href={`/trial/${p.trial.id}`} className={`font-mono text-[12px] no-underline ${p.trial.status === "in_session" ? "text-phosphor" : "text-ink"}`}>
+            <a href={`/trial/${p.trial.id}`} className={`font-mono text-[12px] no-underline ${p.trial.status === "in_session" ? "bg-phosphor px-1.5 py-0.5 text-phosphor-ink" : "text-ink"}`}>
               {LABEL[p.trial.status] ?? p.trial.status}
             </a>
           ) : (
@@ -78,7 +78,7 @@ function PullRows({ pulls }: { pulls: Pull[] }) {
             </span>
           </span>
           {p.trial?.status === "in_session" ? (
-            <a href={`/trial/${p.trial.id}`} className={`${button} border-phosphor text-phosphor`}>
+            <a href={`/trial/${p.trial.id}`} className={`${button} border-ink bg-phosphor text-phosphor-ink hover:bg-phosphor-hot`}>
               Watch live
             </a>
           ) : (
@@ -151,7 +151,7 @@ function MyPulls({ me }: { me: Me }) {
               setAuto(next);
               await api("/api/me/settings", { method: "POST", body: JSON.stringify({ autoTrial: next }) }).catch(() => setAuto(!next));
             }}
-            className="size-4 accent-[#c7ff3e]"
+            className="size-4 accent-phosphor"
           />
           Auto-trial new PRs I open
           <span className="font-mono text-[12px] text-muted">new commits re-trigger</span>
@@ -255,7 +255,7 @@ function MyRepos() {
           onChange={(e) => setQ(e.target.value)}
           placeholder="Filter repositories"
           autoComplete="off"
-          className="h-10 w-full rounded-[6px] border border-line bg-surface px-3 font-mono text-[13px] text-ink outline-none placeholder:text-muted focus:border-phosphor"
+          className="h-10 w-full rounded-[7px] border border-line bg-raise px-3 font-mono text-[13px] text-ink outline-none placeholder:text-muted focus:border-phosphor"
         />
       </div>
       <div className="border-t border-line">
@@ -294,7 +294,7 @@ export function MyWork({ me }: { me: Me }) {
             type="button"
             aria-pressed={tab === id}
             onClick={() => setTab(id)}
-            className={`inline-flex h-9 items-center rounded-[6px] border px-3 text-[13px] ${tab === id ? "border-ink bg-ink text-canvas" : "border-line text-muted hover:text-ink"}`}
+            className={`inline-flex h-9 items-center rounded-[7px] border px-3 text-[13px] ${tab === id ? "border-phosphor bg-phosphor text-phosphor-ink" : "border-line text-muted hover:border-edge hover:bg-hover hover:text-ink"}`}
           >
             {label}
           </button>

@@ -3,12 +3,11 @@ import { createRoot } from "react-dom/client";
 import "@fontsource/space-grotesk/latin-400.css";
 import "@fontsource/space-grotesk/latin-500.css";
 import "@fontsource/space-grotesk/latin-600.css";
-import "@fontsource/crimson-text/latin-400.css";
-import "@fontsource/crimson-text/latin-600.css";
+import "@fontsource/space-grotesk/latin-700.css";
 import "@fontsource/ibm-plex-mono/latin-400.css";
 import "@fontsource/ibm-plex-mono/latin-500.css";
 import { MyWork } from "./mine.tsx";
-import { Shell, useHealth, useMe } from "./shell.tsx";
+import { Shell, useMe } from "./shell.tsx";
 
 type Row = {
   id: string;
@@ -35,8 +34,8 @@ function timeLabel(stamp?: number) {
 }
 
 function Docket() {
-  const health = useHealth();
-  const { me } = useMe();
+  const { me, authEnabled, loaded } = useMe();
+  const signedOut = loaded && authEnabled && !me;
   const [rows, setRows] = useState<Row[] | null>(null);
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);
@@ -89,18 +88,26 @@ function Docket() {
   ] as const;
 
   return (
-    <Shell health={health.text} ready={health.ready}>
+    <Shell>
       <main className="min-h-0 flex-1 overflow-auto px-5 py-8 sm:px-10 sm:py-12">
         <div className="mx-auto flex w-full max-w-3xl flex-col">
-          <h1 className="max-w-[16ch] text-[2.5rem] leading-[1.05] font-medium tracking-[-0.03em]">
+          <h1 className="max-w-[16ch] font-serif text-[2.5rem] leading-[1.05] font-medium tracking-[-0.04em]">
             Place a pull request on the desk.
           </h1>
           <p className="mt-5 max-w-[62ch] font-serif text-[1.175rem] leading-relaxed text-ink">
             Prosecution and defense each run in a micro-VM. The judge rules on exit codes, timings, and output.
           </p>
 
+          {signedOut ? (
+            <p className="mt-10 max-w-[62ch] text-[15px] leading-relaxed text-muted">
+              <a href="/auth/github/login" className="font-medium text-ink">
+                Sign in with GitHub
+              </a>{" "}
+              to put a pull request on trial. Each trial is visible only to the account that started it.
+            </p>
+          ) : (
           <form onSubmit={summon} className="mt-10">
-            <div className="composer flex h-14 items-center rounded-[6px] border border-line bg-surface focus-within:border-phosphor">
+            <div className="composer flex h-14 items-center rounded-[7px] border border-line bg-raise focus-within:border-phosphor">
               <label className="sr-only" htmlFor="prUrl">
                 Pull request URL
               </label>
@@ -122,17 +129,18 @@ function Docket() {
               <button
                 type="submit"
                 disabled={pending}
-                className="mr-1.5 h-11 shrink-0 rounded-[6px] bg-ink px-5 text-[14px] font-medium text-canvas enabled:hover:bg-[#d4d4d4] disabled:cursor-wait disabled:opacity-50"
+                className="mr-1.5 h-11 shrink-0 rounded-[7px] bg-phosphor px-5 text-[14px] font-medium text-phosphor-ink enabled:hover:bg-phosphor-hot disabled:cursor-wait disabled:opacity-50"
               >
                 {pending ? "Summoning" : "Summon"}
               </button>
             </div>
             {error ? (
-              <p id="summon-error" role="alert" className="mt-3 max-w-[68ch] text-[14px] leading-relaxed text-ink">
+              <p id="summon-error" role="alert" className="mt-3 max-w-[68ch] text-[14px] leading-relaxed text-warn">
                 {error} Use a link like https://github.com/owner/repo/pull/123.
               </p>
             ) : null}
           </form>
+          )}
 
           {me ? <MyWork me={me} /> : null}
 
@@ -141,7 +149,7 @@ function Docket() {
               {counts.map(([label, value], index) => (
                 <span key={label}>
                   {index > 0 ? <span className="mx-3 text-line">/</span> : null}
-                  <span className={label === "in session" && value > 0 ? "text-phosphor" : "text-ink"}>{value}</span> {label}
+                  <span className={label === "in session" && value > 0 ? "bg-phosphor px-1 text-phosphor-ink" : "text-ink"}>{value}</span> {label}
                 </span>
               ))}
             </p>
@@ -150,7 +158,9 @@ function Docket() {
                 <p className="py-6 text-[15px] text-muted">Loading the docket.</p>
               ) : rows.length === 0 ? (
                 <p className="max-w-[62ch] py-6 text-[15px] leading-relaxed text-muted">
-                  No trials yet. Paste a pull request URL above, or open one on a repository that sends webhooks here.
+                  {signedOut
+                    ? "Sign in to see your trials."
+                    : "No trials yet. Paste a pull request URL above, or open one on a repository that sends webhooks here."}
                 </p>
               ) : (
                 <ul>
@@ -160,7 +170,7 @@ function Docket() {
                         href={`/trial/${row.id}`}
                         className="grid grid-cols-1 items-baseline gap-x-4 gap-y-1 py-3.5 no-underline hover:bg-raise sm:grid-cols-[7.25rem_minmax(0,1fr)_auto] sm:px-2"
                       >
-                        <span className={`font-mono text-[12px] ${row.status === "in_session" ? "text-phosphor" : "text-muted"}`}>
+                        <span className={`font-mono text-[12px] ${row.status === "in_session" ? "bg-phosphor px-1.5 py-0.5 text-phosphor-ink" : "text-muted"}`}>
                           {LABEL[row.status] ?? row.status}
                         </span>
                         <span className="min-w-0">

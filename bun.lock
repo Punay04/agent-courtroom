@@ -5,7 +5,6 @@
     "": {
       "name": "my-agent",
       "dependencies": {
-        "@fontsource/crimson-text": "^5.3.0",
         "@fontsource/ibm-plex-mono": "^5.3.0",
         "@fontsource/space-grotesk": "^5.3.0",
         "@google/genai": "^2.30.0",
@@ -29,8 +28,6 @@
     },
   },
   "packages": {
-    "@fontsource/crimson-text": ["@fontsource/crimson-text@5.3.0", "", {}, "sha512-W1kLgOlsCD/8DhUNECgYvyx86+t3wAvA0w09juD3XtmwAtV6vuSEwijN4q8fnQ1LgQWV377jQiL8dpSYwLnoAw=="],
-
     "@fontsource/ibm-plex-mono": ["@fontsource/ibm-plex-mono@5.3.0", "", {}, "sha512-eTgnZjZEGk1QtD3ZstF+Vclo2HLAni8YMy34/DxllwZvyz1lR/1RF/xTiAquOBO7MvqBx8D2Ig2WCPMVfdZu7Q=="],
 
     "@fontsource/space-grotesk": ["@fontsource/space-grotesk@5.3.0", "", {}, "sha512-ksnGizDPXIDuvqcTYTSrmZ+evx9sDlS8rp7+42BQ7wU+spt3twEoXfbJz672C+5CLg6VeUQwRy5RXshWb67LcQ=="],
