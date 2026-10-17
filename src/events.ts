@@ -1,7 +1,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { authEnabled } from "./config";
 import type { PRInfo, StampedEvent, TrialEvent, TrialSource, Verdict } from "./types";
 
-/** Public trials are committed as demo replays; private-repo trials stay in gitignored data/. */
+/** File-mode recordings, both gitignored: public-repo trials in recordings/, private-repo trials in data/recordings/. */
 export const PUBLIC_RECORDINGS = "recordings";
 export const PRIVATE_RECORDINGS = "data/recordings";
 mkdirSync(PUBLIC_RECORDINGS, { recursive: true });
@@ -87,9 +88,14 @@ export function summarize(id: string, events: StampedEvent[], live: boolean): Tr
   return { id, pr, status, headline: verdict?.headline, ...meta, visibility };
 }
 
-/** Public trials are visible to everyone; private-repo trials only to the user who ran them. */
+/**
+ * With GitHub sign-in on, a trial is visible only to the account that started it, whatever the repo's visibility.
+ * Without sign-in there are no accounts: public-repo trials are shared and private-repo trials stay hidden.
+ * PgStore.viewable (store.ts) is the SQL twin of this rule; keep them in step.
+ */
 export function canView(summary: TrialSummary, login: string | undefined): boolean {
-  return summary.visibility === "public" || (Boolean(login) && summary.requestedBy === login);
+  if (authEnabled()) return Boolean(login) && summary.requestedBy === login;
+  return summary.visibility === "public";
 }
 
 export function listRecordings(): string[] {

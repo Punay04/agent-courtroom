@@ -71,7 +71,8 @@ export async function summon(prUrl: string, opts: SummonOptions): Promise<TrialR
     throw new Error("This is a private repository. Sign in with GitHub to put it on trial.");
   }
   const existing = findTrial(pr.html_url, pr.head_sha, opts.requestedBy);
-  if (existing && !existing.bus.closed) return existing;
+  // A UI or auto trial never posts to GitHub, so it can't stand in for a webhook trial of the same commit.
+  if (existing && !existing.bus.closed && (existing.publish || !opts.publish)) return existing;
 
   const id = newId();
   const bus = new TrialBus(id, (e) => store.record(id, Boolean(pr.private), e));

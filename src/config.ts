@@ -42,6 +42,9 @@ export const config = {
   exhibitTimeoutSec: Number(process.env.EXHIBIT_TIMEOUT ?? 30),
 };
 
+/** "Sign in with GitHub" is configured. With it on, every trial belongs to (and is visible only to) the account that started it. */
+export const authEnabled = () => Boolean(config.githubClientId && config.githubClientSecret && config.sessionSecret);
+
 export function missingConfig(): string[] {
   const missing: string[] = [];
   if (!config.geminiKey) missing.push("GEMINI_API_KEY");

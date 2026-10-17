@@ -36,7 +36,9 @@ function timeLabel(stamp?: number) {
 
 function Docket() {
   const health = useHealth();
-  const { me } = useMe();
+  const { me, authEnabled, loaded } = useMe();
+  // With sign-in on, trials belong to accounts: a signed-out visitor has none to see and can't start one.
+  const signedOut = loaded && authEnabled && !me;
   const [rows, setRows] = useState<Row[] | null>(null);
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);
@@ -99,40 +101,49 @@ function Docket() {
             Prosecution and defense each run in a micro-VM. The judge rules on exit codes, timings, and output.
           </p>
 
-          <form onSubmit={summon} className="mt-10">
-            <div className="composer flex h-14 items-center rounded-[6px] border border-line bg-surface focus-within:border-phosphor">
-              <label className="sr-only" htmlFor="prUrl">
-                Pull request URL
-              </label>
-              <input
-                id="prUrl"
-                value={url}
-                onChange={(event) => {
-                  setUrl(event.target.value);
-                  if (error) setError("");
-                }}
-                placeholder="https://github.com/owner/repo/pull/123"
-                autoComplete="off"
-                spellCheck={false}
-                required
-                aria-invalid={error ? true : undefined}
-                aria-describedby={error ? "summon-error" : undefined}
-                className="h-full min-w-0 flex-1 bg-transparent px-4 font-mono text-[14px] text-ink outline-none placeholder:text-muted"
-              />
-              <button
-                type="submit"
-                disabled={pending}
-                className="mr-1.5 h-11 shrink-0 rounded-[6px] bg-ink px-5 text-[14px] font-medium text-canvas enabled:hover:bg-[#d4d4d4] disabled:cursor-wait disabled:opacity-50"
-              >
-                {pending ? "Summoning" : "Summon"}
-              </button>
-            </div>
-            {error ? (
-              <p id="summon-error" role="alert" className="mt-3 max-w-[68ch] text-[14px] leading-relaxed text-ink">
-                {error} Use a link like https://github.com/owner/repo/pull/123.
-              </p>
-            ) : null}
-          </form>
+          {signedOut ? (
+            <p className="mt-10 max-w-[62ch] text-[15px] leading-relaxed text-muted">
+              <a href="/auth/github/login" className="font-medium text-ink">
+                Sign in with GitHub
+              </a>{" "}
+              to put a pull request on trial. Each trial is visible only to the account that started it.
+            </p>
+          ) : (
+            <form onSubmit={summon} className="mt-10">
+              <div className="composer flex h-14 items-center rounded-[6px] border border-line bg-surface focus-within:border-phosphor">
+                <label className="sr-only" htmlFor="prUrl">
+                  Pull request URL
+                </label>
+                <input
+                  id="prUrl"
+                  value={url}
+                  onChange={(event) => {
+                    setUrl(event.target.value);
+                    if (error) setError("");
+                  }}
+                  placeholder="https://github.com/owner/repo/pull/123"
+                  autoComplete="off"
+                  spellCheck={false}
+                  required
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={error ? "summon-error" : undefined}
+                  className="h-full min-w-0 flex-1 bg-transparent px-4 font-mono text-[14px] text-ink outline-none placeholder:text-muted"
+                />
+                <button
+                  type="submit"
+                  disabled={pending}
+                  className="mr-1.5 h-11 shrink-0 rounded-[6px] bg-ink px-5 text-[14px] font-medium text-canvas enabled:hover:bg-[#d4d4d4] disabled:cursor-wait disabled:opacity-50"
+                >
+                  {pending ? "Summoning" : "Summon"}
+                </button>
+              </div>
+              {error ? (
+                <p id="summon-error" role="alert" className="mt-3 max-w-[68ch] text-[14px] leading-relaxed text-ink">
+                  {error} Use a link like https://github.com/owner/repo/pull/123.
+                </p>
+              ) : null}
+            </form>
+          )}
 
           {me ? <MyWork me={me} /> : null}
 
@@ -150,7 +161,9 @@ function Docket() {
                 <p className="py-6 text-[15px] text-muted">Loading the docket.</p>
               ) : rows.length === 0 ? (
                 <p className="max-w-[62ch] py-6 text-[15px] leading-relaxed text-muted">
-                  No trials yet. Paste a pull request URL above, or open one on a repository that sends webhooks here.
+                  {signedOut
+                    ? "Sign in to see your trials."
+                    : "No trials yet. Paste a pull request URL above, or open one on a repository that sends webhooks here."}
                 </p>
               ) : (
                 <ul>

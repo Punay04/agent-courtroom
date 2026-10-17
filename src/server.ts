@@ -1,7 +1,7 @@
 import docketPage from "../ui/docket.html";
 import courtroomPage from "../ui/trial.html";
-import { authEnabled, currentUser, initSessions, loginRedirect, logout, oauthCallback, saveSessions, type Session } from "./auth";
-import { config, missingConfig } from "./config";
+import { currentUser, initSessions, loginRedirect, logout, oauthCallback, saveSessions, type Session } from "./auth";
+import { authEnabled, config, missingConfig } from "./config";
 import { reapOrphans } from "./courthouse";
 import { canView, summarize, type TrialSummary } from "./events";
 import { github, serverGitHub, verifySignature, type PullSummary } from "./github";
@@ -147,7 +147,9 @@ async function webhook(req: Request): Promise<Response> {
     if (String(payload.comment?.body ?? "").trim().startsWith("/court")) prUrl = payload.issue.pull_request.html_url;
   }
   if (!prUrl) return json({ ignored: true, event, action: payload.action });
-  const t = await summon(prUrl, { gh: serverGitHub, source: "webhook", publish: true });
+  // The trial belongs to whoever triggered it (the pusher, or the author of the /court comment); only they can open it here.
+  const requestedBy: string | undefined = payload.sender?.login;
+  const t = await summon(prUrl, { gh: serverGitHub, requestedBy, source: "webhook", publish: true });
   return json({ id: t.id, url: trialUrl(t.id) }, 202);
 }
 
@@ -230,6 +232,8 @@ const server = Bun.serve({
       if (req.method === "POST" && path === "/api/trials") {
         const { prUrl } = (await req.json()) as { prUrl?: string };
         if (!prUrl) return json({ error: "prUrl required" }, 400);
+        // With sign-in on, a trial needs an owner: an anonymous one would be visible to nobody, its starter included.
+        if (authEnabled() && !me) return json({ error: "Sign in with GitHub to put a pull request on trial." }, 401);
         // UI-started trials never post to GitHub. Signed-in users read with their own token (private repos OK).
         const t = me
           ? await summon(prUrl, { gh: github(me.token), requestedBy: me.login, source: "ui", publish: false })

@@ -1,5 +1,6 @@
 // bun src/local-trial.ts <repo-dir> <base-ref> <head-ref> "<PR title>" ["<PR body>"]
 // Runs a full trial on a local git repo (no GitHub needed) and records it for replay at /trial/<id>.
+// With GitHub sign-in on, a trial is visible only to its owner: set TRIAL_OWNER=<github login> to see it in the UI.
 import { config } from "./config";
 import { TrialBus } from "./events";
 import { store } from "./store";
@@ -59,7 +60,8 @@ const id = `local-${headRef.replace(/\W+/g, "-")}-${Date.now().toString(36)}-${M
 await store.init();
 const bus = new TrialBus(id, (e) => store.record(id, false, e));
 bus.subscribe(logToConsole(id));
-bus.emit({ t: "trial_start", id, pr, startedAt: Date.now(), source: "local", visibility: "public" });
+const requestedBy = process.env.TRIAL_OWNER || undefined;
+bus.emit({ t: "trial_start", id, pr, startedAt: Date.now(), requestedBy, source: "local", visibility: "public" });
 try {
   await conductTrial(id, pr, { diff, base, head }, bus.emit);
 } catch (e: any) {

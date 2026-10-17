@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from "node:crypto";
-import { config } from "./config";
+import { authEnabled, config } from "./config";
 import { github } from "./github";
 import { store, type SessionRow } from "./store";
 
@@ -27,8 +27,6 @@ export interface Session {
 const SCOPES = "repo read:user";
 const MONTH = 30 * 24 * 3600;
 const sessions = new Map<string, Session>();
-
-export const authEnabled = () => Boolean(config.githubClientId && config.githubClientSecret && config.sessionSecret);
 
 // ---------- encrypted persistence (AES-256-GCM, key derived from SESSION_SECRET) ----------
 

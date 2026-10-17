@@ -43,7 +43,7 @@ ngrok http 3000           # put the https URL in PUBLIC_URL
 bun src/server.ts         # http://localhost:3000
 ```
 
-Start a trial from the docket page by pasting a PR URL, or by HTTP request:
+Start a trial from the docket page by pasting a PR URL, or by HTTP request (only without GitHub sign-in configured; with it, trials need a signed-in session):
 `bun -e 'console.log(await (await fetch("http://localhost:3000/api/trials",{method:"POST",body:JSON.stringify({prUrl:"https://github.com/OWNER/REPO/pull/1"})})).json())'`
 
 ### Storage (Postgres)
@@ -58,7 +58,9 @@ Signed-in users get:
 - **My PRs**: their open PRs across GitHub, with trial status chips. **Auto-trial** puts every new PR they open, and every new commit pushed to one, on trial within `POLL_INTERVAL_SEC`. PRs that existed before sign-in are left alone; "Run on all my open PRs" covers those.
 - **My repos**: public and private repositories. Expand one to see its open PRs, put any of them on trial, or try them all (capped at 10).
 - Results stay in the UI. Signed-in trials never comment on or set statuses on GitHub.
-- Trials on **private** repos are visible only to the user who ran them, and are recorded in gitignored `data/recordings/`. Sessions, including OAuth tokens, are stored AES-256-GCM-encrypted in `data/sessions.json`. Tokens never reach the browser or the sandboxes.
+- **Every trial is visible only to the GitHub account that started it**, on public and private repos alike. Webhook trials belong to the user whose push or `/court` comment triggered them. Starting a trial from the UI requires signing in. Local CLI trials belong to `TRIAL_OWNER=<login>` if set.
+- Without sign-in configured, the server has no accounts: public-repo trials are shown to everyone and private-repo trials to no one.
+- Recordings (`recordings/`, `data/recordings/`) are gitignored. Sessions, including OAuth tokens, are stored AES-256-GCM-encrypted in `data/sessions.json`. Tokens never reach the browser or the sandboxes.
 
 Use an ngrok static domain (`ngrok http --url=<name>.ngrok-free.app 3000`) so the OAuth callback URL never changes.
 
