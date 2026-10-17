@@ -123,8 +123,14 @@ class PgStore implements Store {
   private seqs = new Map<string, number>();
   private flushTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(url: string) {
-    this.sql = new SQL(url);
+  constructor(url: string, socketPath?: string) {
+    // Bun defaults to 10 pooled connections that never close when idle; several app processes (laptop, Cloud Run
+    // revisions during a rollout, scripts) then exhaust a small Postgres' max_connections.
+    this.sql = new SQL(url, {
+      max: Number(process.env.DB_POOL_MAX ?? 4),
+      idleTimeout: 30,
+      ...(socketPath ? { path: socketPath } : {}),
+    });
   }
 
   async init() {
@@ -290,4 +296,6 @@ class PgStore implements Store {
   }
 }
 
-export const store: Store = config.databaseUrl ? new PgStore(config.databaseUrl) : new FileStore();
+export const store: Store = config.databaseUrl
+  ? new PgStore(config.databaseUrl, config.databaseSocketPath || undefined)
+  : new FileStore();

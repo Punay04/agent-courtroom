@@ -11,6 +11,8 @@ export const config = {
   githubToken: process.env.GITHUB_TOKEN ?? "",
   // Postgres for trials, events and sessions. Without it everything is stored in local files.
   databaseUrl: process.env.DATABASE_URL ?? "",
+  // Cloud SQL on Cloud Run: /cloudsql/<PROJECT:REGION:INSTANCE>/.s.PGSQL.5432 (connects over the Unix socket).
+  databaseSocketPath: process.env.DATABASE_SOCKET_PATH ?? "",
   webhookSecret: process.env.WEBHOOK_SECRET ?? "",
   // "Sign in with GitHub" (OAuth App). Callback: PUBLIC_URL/auth/github/callback
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",

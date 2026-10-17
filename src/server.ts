@@ -10,11 +10,16 @@ import { getTrial, liveTrials, summon, trialUrl } from "./trial";
 import type { StampedEvent } from "./types";
 import { startWatcher } from "./watcher";
 
-const styles = Bun.spawn([process.execPath, "x", "@tailwindcss/cli", "-i", "ui/app.css", "-o", "ui/compiled.css"], {
-  stdout: "inherit",
-  stderr: "inherit",
-});
-if ((await styles.exited) !== 0) console.warn("Tailwind did not compile. The desk will load without its styles.");
+const PRODUCTION = process.env.NODE_ENV === "production";
+
+// The Docker build already produces ui/compiled.css, so production only compiles at boot if the file is missing.
+if (!PRODUCTION || !(await Bun.file("ui/compiled.css").exists())) {
+  const styles = Bun.spawn([process.execPath, "x", "@tailwindcss/cli", "-i", "ui/app.css", "-o", "ui/compiled.css"], {
+    stdout: "inherit",
+    stderr: "inherit",
+  });
+  if ((await styles.exited) !== 0) console.warn("Tailwind did not compile. The desk will load without its styles.");
+}
 
 const json = (data: unknown, status = 200) => Response.json(data, { status });
 const TRIAL_ALL_CAP = 10;
@@ -157,10 +162,7 @@ const server = Bun.serve({
     "/": docketPage,
     "/trial/:id": courtroomPage,
   },
-  development: {
-    hmr: true,
-    console: true,
-  },
+  development: PRODUCTION ? false : { hmr: true, console: true },
   async fetch(req) {
     const url = new URL(req.url);
     const path = url.pathname;
