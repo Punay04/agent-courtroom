@@ -2,7 +2,8 @@ import type { Sandbox } from "@nodeops-createos/sandbox";
 import { z } from "zod";
 import { config } from "./config";
 import { exec, tail, upload } from "./courthouse";
-import { partialField, turn, type FnCall, type FunctionTool } from "./llm";
+import type { Part } from "@google/genai";
+import { Chat, functionResponse, type FnCall, type FunctionTool } from "./llm";
 import type { ChargeSheet, Checkout, Exhibit, PRInfo, Role, TestSummary, TrialEvent } from "./types";
 
 export interface CaseContext {
@@ -24,7 +25,7 @@ const InspectArgs = z.object({ command: z.string().min(1) });
 
 const TOOLS: FunctionTool[] = [
   {
-    type: "function",
+
     name: "inspect",
     description:
       "Investigate the repository with a short read-only shell command (cat, grep -rn, ls, sed -n, python3 -c). Runs in /workspace/head; the base branch is at /workspace/base. Output is for you only: it is NOT evidence and the judge never sees it.",
@@ -35,7 +36,7 @@ const TOOLS: FunctionTool[] = [
     },
   },
   {
-    type: "function",
+
     name: "run_exhibit",
     description:
       "File a formal exhibit: a self-contained script executed in your sandbox. The judge sees the code plus its exact exit code, timing and output. checkout=both runs it on base and then on head, which is the strongest way to prove a regression or a pre-existing condition. The checkout directory is the cwd and is on PYTHONPATH, so the project's modules import directly. Each run has a 30 s timeout; a timeout is itself evidence. Print measured numbers and finish with a line 'RESULT: PASS <why>' or 'RESULT: FAIL <why>'.",
@@ -62,7 +63,11 @@ const SHARED_RULES = `Rules of the court:
 const SYSTEM: Record<Role, string> = {
   prosecution: `You are the PROSECUTOR in Agent Courtroom, an automated pull-request review. You are a falsification tester.
 Your job: find concrete, reproducible evidence that the PR's head commit violates its claims or regresses behavior compared to base.
-Good targets: inputs that worked on base, edge cases (empty, unicode, very long, negative, boundaries, None), exceptions, contract violations, and performance cliffs such as catastrophic regex backtracking or quadratic loops (measure with time.perf_counter, grow the input size, and compare base vs head).
+Checklist, in order of impact:
+1. If the diff adds or changes a regular expression: test for catastrophic backtracking (ReDoS). Time the function on near-miss inputs that grow, e.g. "a"*n + "!" and "a."*n + "!" for n = 10, 14, 18, 22, 26, 30, printing the elapsed ms for each n with flush=True. Super-linear growth or a timeout on head (but not base) is decisive evidence.
+2. Inputs that worked on base but behave differently on head (compare outputs for the same inputs with checkout=both).
+3. Edge cases: empty, None, unicode, very long, negative, boundaries; exceptions and contract violations.
+4. Performance cliffs such as quadratic loops (time.perf_counter, growing sizes, base vs head).
 Prefer checkout=both so the judge sees base vs head side by side. One valid counterexample is enough to win; don't pad.
 ${SHARED_RULES}`,
   defense: `You are DEFENSE COUNSEL in Agent Courtroom, an automated pull-request review.
@@ -98,6 +103,7 @@ ${JSON.stringify(ctx.charge, null, 2)}
 Linux micro-VM, 1 vCPU, no internet except PyPI.
 /workspace/base = base branch ${ctx.pr.base_ref} @ ${sha(ctx.pr.base_sha)}
 /workspace/head = PR head ${ctx.pr.head_ref} @ ${sha(ctx.pr.head_sha)}
+These are plain source trees with no .git directory; git commands will not work. The full diff is below; use \`diff -ru /workspace/base /workspace/head\` or cat to look further.
 Tools:
 ${ctx.tools}
 
@@ -128,9 +134,6 @@ export async function runCounsel(p: {
   const exhibits: Exhibit[] = [];
   let inspects = 0;
   let statement = "";
-  let prevId: string | undefined;
-  let input: string | any[] = brief(p.ctx, role, round, p.prior);
-  let lastCodeEmit = 0;
   let failures = 0;
 
   const say = (text: string) => {
@@ -180,9 +183,9 @@ export async function runCounsel(p: {
     };
   }
 
-  async function handle(call: FnCall): Promise<any> {
-    const fail = (msg: string) => ({ type: "function_result", call_id: call.id, name: call.name, is_error: true, result: msg });
-    const ok = (obj: unknown) => ({ type: "function_result", call_id: call.id, name: call.name, result: JSON.stringify(obj) });
+  async function handle(call: FnCall): Promise<Part> {
+    const fail = (msg: string) => functionResponse(call, { error: msg });
+    const ok = (obj: Record<string, unknown>) => functionResponse(call, { output: obj });
 
     if (call.name === "inspect") {
       const parsed = InspectArgs.safeParse(call.arguments);
@@ -204,33 +207,14 @@ export async function runCounsel(p: {
     return fail(`Unknown tool ${call.name}.`);
   }
 
+  const chat = new Chat({ model: config.counselModel, system: SYSTEM[role], tools: TOOLS, thinking: config.counselThinking });
+  let parts: Part[] = [{ text: brief(p.ctx, role, round, p.prior) }];
+
   for (let step = 0; step < 18; step++) {
     const limitsHit = exhibits.length >= config.maxExhibitsPerTurn && step > 0;
     let res;
     try {
-      res = await turn(
-        {
-          model: config.counselModel,
-          system_instruction: SYSTEM[role],
-          input,
-          tools: TOOLS,
-          previous_interaction_id: prevId,
-          generation_config: { thinking_level: config.counselThinking, tool_choice: limitsHit ? "none" : "auto" },
-        },
-        {
-          onText: say,
-          onArgs: (name, partial) => {
-            if (name && name !== "run_exhibit") return;
-            const now = Date.now();
-            if (now - lastCodeEmit < 80) return;
-            const code = partialField(partial, "code");
-            if (code) {
-              lastCodeEmit = now;
-              emit({ t: "exhibit_code", role, code });
-            }
-          },
-        },
-      );
+      res = await chat.send(parts, { onText: say }, { toolsOff: limitsHit });
     } catch (e: any) {
       console.error(`[counsel:${role}]`, e?.message ?? e);
       if (++failures >= 2) {
@@ -239,11 +223,10 @@ export async function runCounsel(p: {
       }
       continue;
     }
-    prevId = res.id;
     if (!res.calls.length) break;
-    const results = [];
+    const results: Part[] = [];
     for (const call of res.calls) results.push(await handle(call));
-    input = results;
+    parts = results;
   }
 
   return { statement: statement.trim(), exhibits };

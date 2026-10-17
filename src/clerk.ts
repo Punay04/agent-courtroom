@@ -24,5 +24,5 @@ export async function fileCharges(pr: PRInfo, diff: string): Promise<ChargeSheet
 <diff>
 ${diff.slice(0, 40_000)}
 </diff>`;
-  return jsonTurn(config.clerkModel, SYSTEM, input, ChargeSheetSchema, { thinking_level: "low" });
+  return jsonTurn(config.clerkModel, SYSTEM, input, ChargeSheetSchema, "low");
 }

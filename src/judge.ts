@@ -71,5 +71,5 @@ ${input.exhibits.map(renderExhibit).join("\n\n") || "(none filed)"}
 ${input.statements.map((s) => `- ${s.role} r${s.round}: ${s.statement.slice(0, 800)}`).join("\n")}
 
 Deliver your verdict.`;
-  return jsonTurn(config.judgeModel, SYSTEM, prompt, VerdictSchema, { thinking_level: "high" });
+  return jsonTurn(config.judgeModel, SYSTEM, prompt, VerdictSchema, "medium");
 }

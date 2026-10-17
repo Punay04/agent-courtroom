@@ -2,7 +2,7 @@
 import { z } from "zod";
 import { config, missingConfig } from "./config";
 import { createSandbox, destroySandbox, exec } from "./courthouse";
-import { jsonTurn, turn } from "./llm";
+import { Chat, functionResponse, jsonTurn } from "./llm";
 
 const missing = missingConfig();
 if (missing.length) {
@@ -30,27 +30,35 @@ async function sandboxes() {
 }
 
 async function gemini() {
-  console.log(`[gemini] streaming turn with ${config.counselModel}…`);
-  const r = await turn(
-    {
-      model: config.counselModel,
-      input: "Call the run_exhibit tool with a tiny python script that prints 2+2. Argument: 'arithmetic works'.",
-      tools: [
-        {
-          type: "function",
-          name: "run_exhibit",
-          description: "Run a script",
-          parameters: {
-            type: "object",
-            properties: { argument: { type: "string" }, code: { type: "string" } },
-            required: ["argument", "code"],
-          },
+  console.log(`[gemini] backend=${config.geminiBackend}, function-calling turn with ${config.counselModel}…`);
+  const chat = new Chat({
+    model: config.counselModel,
+    system: "You are a test harness.",
+    thinking: config.counselThinking,
+    tools: [
+      {
+        name: "run_exhibit",
+        description: "Run a script",
+        parameters: {
+          type: "object",
+          properties: { argument: { type: "string" }, code: { type: "string" } },
+          required: ["argument", "code"],
         },
-      ],
-    },
-    { onText: (d) => process.stdout.write(d), onArgs: (n, p) => process.stdout.write(`\r  [args ${n}] ${p.slice(-60)}`) },
+      },
+    ],
+  });
+  const r = await chat.send(
+    [{ text: "Call the run_exhibit tool with a tiny python script that prints 2+2. Argument: 'arithmetic works'." }],
+    { onText: (d) => process.stdout.write(d) },
   );
-  console.log(`\n[gemini] id=${r.id} status=${r.status} calls=${JSON.stringify(r.calls)}`);
+  console.log(`\n[gemini] calls=${JSON.stringify(r.calls)}`);
+  const call = r.calls[0];
+  if (call) {
+    const r2 = await chat.send([functionResponse(call, { output: { stdout: "4\n", exit_code: 0 } })], {
+      onText: (d) => process.stdout.write(d),
+    });
+    console.log(`\n[gemini] follow-up after function result: text=${JSON.stringify(r2.text.slice(0, 120))} calls=${r2.calls.length}`);
+  }
   const v = await jsonTurn(
     config.judgeModel,
     "You are a judge.",

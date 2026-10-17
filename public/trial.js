@@ -31,6 +31,19 @@ function highlight(code, lang) {
   }
 }
 
+// Exhibit code arrives whole, so "type" it in for the audience, then syntax-highlight.
+function typeInto(codeEl, code, lang, feed) {
+  const duration = Math.min(2600, 400 + code.length * 5);
+  const start = performance.now();
+  const frame = (now) => {
+    const n = Math.floor(code.length * Math.min(1, (now - start) / duration));
+    stick(feed, () => (codeEl.textContent = code.slice(0, n) + (n < code.length ? "▍" : "")));
+    if (n < code.length) requestAnimationFrame(frame);
+    else codeEl.innerHTML = highlight(code, lang);
+  };
+  requestAnimationFrame(frame);
+}
+
 function status(message) {
   const log = $("statusLog");
   log.appendChild(el("div", "statusline", esc(message)));
@@ -119,12 +132,13 @@ const handlers = {
       "exhibit",
       `<div class="eh"><span class="eid">${esc(e.id)}</span><span class="co">${e.checkout === "both" ? "base vs head" : e.checkout}</span></div>
        <div class="arg">“${esc(e.argument)}”</div>
-       <pre><code class="hljs">${highlight(e.code, e.language)}</code></pre>
+       <pre><code class="hljs"></code></pre>
        <div class="terminal"></div>
        <div class="badges">${(e.checkout === "both" ? ["base", "head"] : [e.checkout]).map((c) => `<span data-co="${c}"><span class="badge">${c}</span> ${badge(null)}</span>`).join("")}</div>`,
     );
     exhibits.set(e.id, { card, term: card.querySelector(".terminal"), badges: card.querySelector(".badges"), lastCheckout: null, role: e.role });
     stick(s.feed, () => s.feed.appendChild(card));
+    typeInto(card.querySelector("code"), e.code, e.language, s.feed);
   },
   exhibit_output(e) {
     const x = exhibits.get(e.id);

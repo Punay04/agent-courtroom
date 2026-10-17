@@ -8,7 +8,7 @@
 
 ```
 GitHub ──webhook──▶  Bun server
-                       ├─▶ Gemini API     prosecutor / defender (gemini-3.8-flash), judge (gemini-4-argon)
+                       ├─▶ Gemini API     prosecutor / defender (gemini-3.5-flash-lite), judge (gemini-3.8-flash)
                        ├─▶ CreateOS API   2 micro-VMs per trial; all agent-written code runs here
                        └─▶ GitHub API     PR comment + commit status
 Browser ◀── SSE ── live courtroom at /trial/:id

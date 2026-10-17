@@ -8,7 +8,7 @@ import { TrialBus } from "./events";
 import * as github from "./github";
 import { deliberate } from "./judge";
 import { renderInSession, renderMistrial, renderVerdict } from "./render";
-import type { Exhibit, PRInfo, Role, StampedEvent, Verdict } from "./types";
+import type { Exhibit, PRInfo, Role, StampedEvent, TestSummary, TrialEvent, Verdict } from "./types";
 
 export interface TrialRecord {
   id: string;
@@ -56,8 +56,6 @@ async function runTrial(t: TrialRecord): Promise<void> {
     console.warn(`[github] ${what}:`, e?.message ?? e);
     return undefined;
   };
-  let p: Sandbox | undefined;
-  let d: Sandbox | undefined;
   let commentId: number | undefined;
 
   try {
@@ -70,11 +68,43 @@ async function runTrial(t: TrialRecord): Promise<void> {
       github.getTarball(pr, pr.base_sha),
       github.getTarball(pr, pr.head_sha),
     ]);
+    const { verdict, exhibits, tests } = await conductTrial(t.id, pr, { diff, base, head }, emit);
+    t.verdict = verdict;
+
+    await github.upsertComment(pr, renderVerdict(verdict, exhibits, tests, url), commentId).catch(warn("comment"));
+    const desc =
+      verdict.ruling === "INCONCLUSIVE" ? `Inconclusive: human review advised. ${verdict.headline}` : `${verdict.ruling}: ${verdict.headline}`;
+    await github.setStatus(pr, verdict.ruling === "BROKEN" ? "failure" : "success", desc, url).catch(warn("status"));
+  } catch (e: any) {
+    const message = String(e?.message ?? e);
+    console.error(`[trial ${t.id}] mistrial:`, e);
+    emit({ t: "error", message });
+    await github.upsertComment(pr, renderMistrial(message, url), commentId).catch(warn("comment"));
+    await github.setStatus(pr, "error", `Mistrial: ${message}`, url).catch(warn("status"));
+  } finally {
+    emit({ t: "trial_end" });
+  }
+}
+
+/** The court itself, independent of where the case came from: sandboxes, clerk, two rounds of counsel, judge. */
+export async function conductTrial(
+  id: string,
+  pr: PRInfo,
+  source: { diff: string; base: ArrayBuffer; head: ArrayBuffer },
+  emit: (e: TrialEvent) => void,
+): Promise<{ verdict: Verdict; exhibits: Exhibit[]; tests: TestSummary[] }> {
+  const status = (message: string) => emit({ t: "status", message });
+  const { diff, base, head } = source;
+  let p: Sandbox | undefined;
+  let d: Sandbox | undefined;
+  try {
     const changedFiles = [...diff.matchAll(/^diff --git a\/(\S+) b\//gm)].map((m) => m[1]!);
     const chargeSheet = fileCharges(pr, diff);
 
     status("Summoning two CreateOS micro-VMs…");
-    const created = await Promise.allSettled([createSandbox(`court-${t.id}-p`), createSandbox(`court-${t.id}-d`)]);
+    // CreateOS sandbox names max out at 22 chars.
+    const sbName = (side: string) => `court-${id.slice(-12)}-${side}`;
+    const created = await Promise.allSettled([createSandbox(sbName("p")), createSandbox(sbName("d"))]);
     p = created[0].status === "fulfilled" ? created[0].value : undefined;
     d = created[1].status === "fulfilled" ? created[1].value : undefined;
     if (!p || !d) {
@@ -120,26 +150,14 @@ async function runTrial(t: TrialRecord): Promise<void> {
 
     emit({ t: "deliberating" });
     const verdict = await deliberate({ pr, charge, tests, exhibits, statements });
-    t.verdict = verdict;
     emit({ t: "verdict", verdict });
-
-    await github.upsertComment(pr, renderVerdict(verdict, exhibits, tests, url), commentId).catch(warn("comment"));
-    const desc =
-      verdict.ruling === "INCONCLUSIVE" ? `Inconclusive: human review advised. ${verdict.headline}` : `${verdict.ruling}: ${verdict.headline}`;
-    await github.setStatus(pr, verdict.ruling === "BROKEN" ? "failure" : "success", desc, url).catch(warn("status"));
-  } catch (e: any) {
-    const message = String(e?.message ?? e);
-    console.error(`[trial ${t.id}] mistrial:`, e);
-    emit({ t: "error", message });
-    await github.upsertComment(pr, renderMistrial(message, url), commentId).catch(warn("comment"));
-    await github.setStatus(pr, "error", `Mistrial: ${message}`, url).catch(warn("status"));
+    return { verdict, exhibits, tests };
   } finally {
     await Promise.all([destroySandbox(p), destroySandbox(d)]);
-    emit({ t: "trial_end" });
   }
 }
 
-function logToConsole(id: string) {
+export function logToConsole(id: string) {
   const tag = (role: string) => (role === "prosecution" ? "\x1b[31mPROSECUTION\x1b[0m" : "\x1b[34mDEFENSE\x1b[0m");
   return (e: StampedEvent) => {
     const at = `[${id} +${(e.ts / 1000).toFixed(1)}s]`;

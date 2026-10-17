@@ -5,11 +5,14 @@ export const config = {
   port,
   publicUrl: (process.env.PUBLIC_URL || `http://localhost:${port}`).replace(/\/$/, ""),
   geminiKey: process.env.GEMINI_API_KEY ?? "",
+  // Vertex AI express keys start with "AQ."; AI Studio keys start with "AIza".
+  geminiBackend:
+    process.env.GEMINI_BACKEND || ((process.env.GEMINI_API_KEY ?? "").startsWith("AQ.") ? "vertex" : "gemini"),
   githubToken: process.env.GITHUB_TOKEN ?? "",
   webhookSecret: process.env.WEBHOOK_SECRET ?? "",
-  counselModel: process.env.COUNSEL_MODEL ?? "gemini-3.8-flash",
-  clerkModel: process.env.CLERK_MODEL ?? "gemini-3.8-flash",
-  judgeModel: process.env.JUDGE_MODEL ?? "gemini-4-argon",
+  counselModel: process.env.COUNSEL_MODEL || "gemini-3.5-flash-lite",
+  clerkModel: process.env.CLERK_MODEL || "gemini-3.5-flash-lite",
+  judgeModel: process.env.JUDGE_MODEL || "gemini-3.8-flash",
   counselThinking: process.env.COUNSEL_THINKING ?? "low",
   stream: process.env.LLM_STREAM !== "0",
   shape: process.env.SANDBOX_SHAPE ?? "s-1vcpu-1gb",
