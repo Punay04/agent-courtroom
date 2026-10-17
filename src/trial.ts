@@ -5,10 +5,11 @@ import { config } from "./config";
 import { runCounsel, type CaseContext } from "./counsel";
 import { createSandbox, destroySandbox } from "./courthouse";
 import { TrialBus } from "./events";
-import * as github from "./github";
+import { parsePrUrl, serverGitHub, type GitHubClient } from "./github";
 import { deliberate } from "./judge";
 import { renderInSession, renderMistrial, renderVerdict } from "./render";
-import type { Exhibit, PRInfo, Role, StampedEvent, TestSummary, TrialEvent, Verdict } from "./types";
+import { store } from "./store";
+import type { Exhibit, PRInfo, Role, StampedEvent, TestSummary, TrialEvent, TrialSource, Verdict } from "./types";
 
 export interface TrialRecord {
   id: string;
@@ -16,42 +17,93 @@ export interface TrialRecord {
   bus: TrialBus;
   startedAt: number;
   verdict?: Verdict;
+  /** Client used to read the PR: the signed-in user's token, or the server token for webhooks. */
+  gh: GitHubClient;
+  requestedBy?: string;
+  source: TrialSource;
+  /** Post comment + status back to the PR. Only the webhook flow does this. */
+  publish: boolean;
+}
+
+export interface SummonOptions {
+  gh?: GitHubClient;
+  requestedBy?: string;
+  source: TrialSource;
+  publish: boolean;
+  /** Already-fetched PR info (saves a request). */
+  pr?: PRInfo;
 }
 
 const trials = new Map<string, TrialRecord>();
-let queue: Promise<void> = Promise.resolve();
-let waiting = 0;
 
 export const getTrial = (id: string) => trials.get(id);
 export const liveTrials = () => [...trials.values()];
 export const trialUrl = (id: string) => `${config.publicUrl}/trial/${id}`;
 
+/** Has this user (or anyone, for webhooks) already put this exact commit on trial in this process? */
+export const findTrial = (htmlUrl: string, headSha: string, requestedBy?: string) =>
+  liveTrials().find((t) => t.pr.html_url === htmlUrl && t.pr.head_sha === headSha && t.requestedBy === requestedBy);
+
 const newId = () => Date.now().toString(36).slice(-5) + Math.random().toString(36).slice(2, 6);
 
-/** Open a trial for a PR and queue it. One trial runs at a time so sandbox usage stays bounded. */
-export async function summon(prUrl: string): Promise<TrialRecord> {
-  const { owner, repo, number } = github.parsePrUrl(prUrl);
-  const pr = await github.getPR(owner, repo, number);
-  for (const t of trials.values()) {
-    if (t.pr.html_url === pr.html_url && t.pr.head_sha === pr.head_sha && !t.bus.closed) return t;
+// A small semaphore bounds how many trials (2 sandboxes each) run at once across all users.
+let running = 0;
+const waiters: (() => void)[] = [];
+async function acquire(): Promise<void> {
+  if (running < config.maxConcurrentTrials) {
+    running++;
+    return;
   }
+  await new Promise<void>((resolve) => waiters.push(resolve));
+  running++;
+}
+function release(): void {
+  running--;
+  waiters.shift()?.();
+}
+
+/** Open a trial for a PR and queue it. */
+export async function summon(prUrl: string, opts: SummonOptions): Promise<TrialRecord> {
+  const gh = opts.gh ?? serverGitHub;
+  const { owner, repo, number } = parsePrUrl(prUrl);
+  const pr = opts.pr ?? (await gh.getPR(owner, repo, number));
+  if (pr.private && !opts.requestedBy && opts.source !== "webhook") {
+    throw new Error("This is a private repository. Sign in with GitHub to put it on trial.");
+  }
+  const existing = findTrial(pr.html_url, pr.head_sha, opts.requestedBy);
+  if (existing && !existing.bus.closed) return existing;
+
   const id = newId();
-  const bus = new TrialBus(id);
+  const bus = new TrialBus(id, (e) => store.record(id, Boolean(pr.private), e));
   bus.subscribe(logToConsole(id));
-  const record: TrialRecord = { id, pr, bus, startedAt: Date.now() };
+  const record: TrialRecord = { id, pr, bus, startedAt: Date.now(), gh, requestedBy: opts.requestedBy, source: opts.source, publish: opts.publish };
   trials.set(id, record);
-  bus.emit({ t: "trial_start", id, pr, startedAt: record.startedAt });
-  if (waiting > 0) bus.emit({ t: "status", message: `Waiting for the courtroom (${waiting} trial(s) ahead)…` });
-  waiting++;
-  queue = queue
-    .then(() => runTrial(record))
-    .catch((e) => console.error("[trial] queue error:", e))
-    .finally(() => waiting--);
+  bus.emit({
+    t: "trial_start",
+    id,
+    pr,
+    startedAt: record.startedAt,
+    requestedBy: opts.requestedBy,
+    source: opts.source,
+    visibility: pr.private ? "private" : "public",
+  });
+  console.log(`[trial ${id}] source=${opts.source}${opts.requestedBy ? ` by=${opts.requestedBy}` : ""}${pr.private ? " (private)" : ""}`);
+  if (running >= config.maxConcurrentTrials) {
+    bus.emit({ t: "status", message: `Waiting for a courtroom (${waiters.length + 1} trial(s) ahead)…` });
+  }
+  void (async () => {
+    await acquire();
+    try {
+      await runTrial(record);
+    } finally {
+      release();
+    }
+  })().catch((e) => console.error("[trial] queue error:", e));
   return record;
 }
 
 async function runTrial(t: TrialRecord): Promise<void> {
-  const { pr, bus } = t;
+  const { pr, bus, gh } = t;
   const emit = bus.emit;
   const url = trialUrl(t.id);
   const status = (message: string) => emit({ t: "status", message });
@@ -62,28 +114,30 @@ async function runTrial(t: TrialRecord): Promise<void> {
   let commentId: number | undefined;
 
   try {
-    await github.setStatus(pr, "pending", "⚖️ Court is in session", url).catch(warn("status"));
-    commentId = await github.upsertComment(pr, renderInSession(pr, url)).catch(warn("comment"));
+    if (t.publish) {
+      await gh.setStatus(pr, "pending", "⚖️ Court is in session", url).catch(warn("status"));
+      commentId = await gh.upsertComment(pr, renderInSession(pr, url)).catch(warn("comment"));
+    }
 
     status("Fetching the diff and both checkouts from GitHub…");
-    const [diff, base, head] = await Promise.all([
-      github.getDiff(pr),
-      github.getTarball(pr, pr.base_sha),
-      github.getTarball(pr, pr.head_sha),
-    ]);
+    const [diff, base, head] = await Promise.all([gh.getDiff(pr), gh.getTarball(pr, pr.base_sha), gh.getTarball(pr, pr.head_sha)]);
     const { verdict, exhibits, tests } = await conductTrial(t.id, pr, { diff, base, head }, emit);
     t.verdict = verdict;
 
-    await github.upsertComment(pr, renderVerdict(verdict, exhibits, tests, url), commentId).catch(warn("comment"));
-    const desc =
-      verdict.ruling === "INCONCLUSIVE" ? `Inconclusive: human review advised. ${verdict.headline}` : `${verdict.ruling}: ${verdict.headline}`;
-    await github.setStatus(pr, verdict.ruling === "BROKEN" ? "failure" : "success", desc, url).catch(warn("status"));
+    if (t.publish) {
+      await gh.upsertComment(pr, renderVerdict(verdict, exhibits, tests, url), commentId).catch(warn("comment"));
+      const desc =
+        verdict.ruling === "INCONCLUSIVE" ? `Inconclusive: human review advised. ${verdict.headline}` : `${verdict.ruling}: ${verdict.headline}`;
+      await gh.setStatus(pr, verdict.ruling === "BROKEN" ? "failure" : "success", desc, url).catch(warn("status"));
+    }
   } catch (e: any) {
     const message = String(e?.message ?? e);
     console.error(`[trial ${t.id}] mistrial:`, e);
     emit({ t: "error", message });
-    await github.upsertComment(pr, renderMistrial(message, url), commentId).catch(warn("comment"));
-    await github.setStatus(pr, "error", `Mistrial: ${message}`, url).catch(warn("status"));
+    if (t.publish) {
+      await gh.upsertComment(pr, renderMistrial(message, url), commentId).catch(warn("comment"));
+      await gh.setStatus(pr, "error", `Mistrial: ${message}`, url).catch(warn("status"));
+    }
   } finally {
     emit({ t: "trial_end" });
   }

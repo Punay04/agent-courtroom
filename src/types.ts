@@ -24,7 +24,10 @@ export interface PRInfo {
   base_sha: string;
   head_ref: string;
   base_ref: string;
+  private?: boolean;
 }
+
+export type TrialSource = "webhook" | "ui" | "auto" | "local";
 
 export interface ExecResult {
   exit_code: number;
@@ -76,7 +79,15 @@ export interface Verdict {
 }
 
 export type TrialEvent =
-  | { t: "trial_start"; id: string; pr: PRInfo; startedAt: number }
+  | {
+      t: "trial_start";
+      id: string;
+      pr: PRInfo;
+      startedAt: number;
+      requestedBy?: string;
+      source?: TrialSource;
+      visibility?: "public" | "private";
+    }
   | { t: "status"; message: string }
   | { t: "charge"; sheet: ChargeSheet }
   | { t: "exhibit0"; tests: TestSummary[] }

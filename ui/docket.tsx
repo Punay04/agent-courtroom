@@ -7,7 +7,8 @@ import "@fontsource/crimson-text/latin-400.css";
 import "@fontsource/crimson-text/latin-600.css";
 import "@fontsource/ibm-plex-mono/latin-400.css";
 import "@fontsource/ibm-plex-mono/latin-500.css";
-import { Shell, useHealth } from "./shell.tsx";
+import { MyWork } from "./mine.tsx";
+import { Shell, useHealth, useMe } from "./shell.tsx";
 
 type Row = {
   id: string;
@@ -15,6 +16,9 @@ type Row = {
   status: "in_session" | "BROKEN" | "UPHELD" | "INCONCLUSIVE" | "error";
   headline?: string;
   startedAt?: number;
+  visibility?: "public" | "private";
+  source?: "webhook" | "ui" | "auto" | "local";
+  requestedBy?: string;
 };
 
 const LABEL: Record<Row["status"], string> = {
@@ -32,6 +36,7 @@ function timeLabel(stamp?: number) {
 
 function Docket() {
   const health = useHealth();
+  const { me } = useMe();
   const [rows, setRows] = useState<Row[] | null>(null);
   const [url, setUrl] = useState("");
   const [pending, setPending] = useState(false);
@@ -129,6 +134,8 @@ function Docket() {
             ) : null}
           </form>
 
+          {me ? <MyWork me={me} /> : null}
+
           <section className="mt-14" aria-label="Trials">
             <p className="font-mono text-[13px] text-muted tabular-nums">
               {counts.map(([label, value], index) => (
@@ -157,9 +164,14 @@ function Docket() {
                           {LABEL[row.status] ?? row.status}
                         </span>
                         <span className="min-w-0">
-                          <span className="block truncate text-[15px] font-medium tracking-[-0.01em]">{row.pr.title}</span>
+                          <span className="block truncate text-[15px] font-medium tracking-[-0.01em]">
+                            {row.visibility === "private" ? <span className="mr-2 font-mono text-[11px] text-muted">private</span> : null}
+                            {row.pr.title}
+                          </span>
                           <span className="mt-0.5 block truncate font-mono text-[12px] text-muted">
                             {row.pr.owner}/{row.pr.repo} #{row.pr.number}
+                            {row.source === "auto" ? " · auto" : ""}
+                            {row.requestedBy ? ` · @${row.requestedBy}` : ""}
                             {row.headline ? ` · ${row.headline}` : ""}
                           </span>
                         </span>

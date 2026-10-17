@@ -2,6 +2,7 @@
 // Runs a full trial on a local git repo (no GitHub needed) and records it for replay at /trial/<id>.
 import { config } from "./config";
 import { TrialBus } from "./events";
+import { store } from "./store";
 import { conductTrial, logToConsole } from "./trial";
 import type { PRInfo } from "./types";
 
@@ -55,9 +56,10 @@ const pr: PRInfo = {
 // The old 4-char timestamp suffix repeats about every 28 minutes and TrialBus appends,
 // so a second run of the same branch would concatenate two trials into one recording.
 const id = `local-${headRef.replace(/\W+/g, "-")}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}`;
-const bus = new TrialBus(id);
+await store.init();
+const bus = new TrialBus(id, (e) => store.record(id, false, e));
 bus.subscribe(logToConsole(id));
-bus.emit({ t: "trial_start", id, pr, startedAt: Date.now() });
+bus.emit({ t: "trial_start", id, pr, startedAt: Date.now(), source: "local", visibility: "public" });
 try {
   await conductTrial(id, pr, { diff, base, head }, bus.emit);
 } catch (e: any) {
@@ -65,4 +67,6 @@ try {
 } finally {
   bus.emit({ t: "trial_end" });
 }
+await store.drain();
 console.log(`\nRecorded. Watch the replay at ${config.publicUrl}/trial/${id}`);
+process.exit(0);
