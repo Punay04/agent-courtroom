@@ -9,7 +9,16 @@ export const config = {
   geminiBackend:
     process.env.GEMINI_BACKEND || ((process.env.GEMINI_API_KEY ?? "").startsWith("AQ.") ? "vertex" : "gemini"),
   githubToken: process.env.GITHUB_TOKEN ?? "",
+  // Postgres for trials, events and sessions. Without it everything is stored in local files.
+  databaseUrl: process.env.DATABASE_URL ?? "",
   webhookSecret: process.env.WEBHOOK_SECRET ?? "",
+  // "Sign in with GitHub" (OAuth App). Callback: PUBLIC_URL/auth/github/callback
+  githubClientId: process.env.GITHUB_CLIENT_ID ?? "",
+  githubClientSecret: process.env.GITHUB_CLIENT_SECRET ?? "",
+  sessionSecret: process.env.SESSION_SECRET ?? "",
+  pollIntervalSec: Number(process.env.POLL_INTERVAL_SEC ?? 60),
+  maxAutoTrialsPerHour: Number(process.env.MAX_AUTO_TRIALS_PER_HOUR ?? 10),
+  maxConcurrentTrials: Number(process.env.MAX_CONCURRENT_TRIALS ?? 2),
   counselModel: process.env.COUNSEL_MODEL || "gemini-3.5-flash-lite",
   clerkModel: process.env.CLERK_MODEL || "gemini-3.5-flash-lite",
   judgeModel: process.env.JUDGE_MODEL || "gemini-3.8-flash",

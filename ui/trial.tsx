@@ -46,7 +46,7 @@ function reducer(state: CourtState, action: Action): CourtState {
     ...state,
     missing: true,
     title: "This trial is not on the desk.",
-    sub: "The address may be wrong, or the recording is gone.",
+    sub: "The address may be wrong or the recording is gone. Trials on private repositories are visible only to the GitHub account that ran them, so sign in with that account.",
     chip: "Missing",
     chipTone: "quiet",
   };

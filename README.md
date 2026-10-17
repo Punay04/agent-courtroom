@@ -46,6 +46,22 @@ bun src/server.ts         # http://localhost:3000
 Start a trial from the docket page by pasting a PR URL, or by HTTP request:
 `bun -e 'console.log(await (await fetch("http://localhost:3000/api/trials",{method:"POST",body:JSON.stringify({prUrl:"https://github.com/OWNER/REPO/pull/1"})})).json())'`
 
+### Storage (Postgres)
+Set `DATABASE_URL` to use Postgres (Bun's built-in client, no extra dependency). The schema is created on boot: `trials` (one row per trial with PR, owner, visibility, status and verdict), `trial_events` (every streamed event, for replays) and `sessions` (OAuth tokens encrypted with `SESSION_SECRET`). Trials interrupted by a restart are marked as mistrials. Run `bun src/db-import.ts` once to copy existing file recordings into the database. Without `DATABASE_URL`, everything is stored in `recordings/` and `data/`.
+
+### Sign in with GitHub (repo browser + auto-trial)
+1. github.com/settings/developers → **OAuth Apps → New OAuth App**. Homepage URL: `$PUBLIC_URL`. Callback URL: `$PUBLIC_URL/auth/github/callback`.
+2. Put `GITHUB_CLIENT_ID`, `GITHUB_CLIENT_SECRET` and a random `SESSION_SECRET` in `.env`, then restart.
+3. Open the app via `$PUBLIC_URL` (the cookie and callback live on that host) and click **Sign in with GitHub**.
+
+Signed-in users get:
+- **My PRs**: their open PRs across GitHub, with trial status chips. **Auto-trial** puts every new PR they open, and every new commit pushed to one, on trial within `POLL_INTERVAL_SEC`. PRs that existed before sign-in are left alone; "Run on all my open PRs" covers those.
+- **My repos**: public and private repositories. Expand one to see its open PRs, put any of them on trial, or try them all (capped at 10).
+- Results stay in the UI. Signed-in trials never comment on or set statuses on GitHub.
+- Trials on **private** repos are visible only to the user who ran them, and are recorded in gitignored `data/recordings/`. Sessions, including OAuth tokens, are stored AES-256-GCM-encrypted in `data/sessions.json`. Tokens never reach the browser or the sandboxes.
+
+Use an ngrok static domain (`ngrok http --url=<name>.ngrok-free.app 3000`) so the OAuth callback URL never changes.
+
 ### GitHub webhook
 Repo → Settings → Webhooks → Add:
 - Payload URL: `$PUBLIC_URL/api/github/webhook`
