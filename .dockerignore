@@ -1,0 +1,12 @@
+node_modules
+.git
+.env
+.env.*
+!.env.example
+data
+recordings
+ui/compiled.css
+.impeccable
+*.log
+.DS_Store
+.idea

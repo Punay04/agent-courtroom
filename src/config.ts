@@ -11,6 +11,8 @@ export const config = {
   githubToken: process.env.GITHUB_TOKEN ?? "",
   // Postgres for trials, events and sessions. Without it everything is stored in local files.
   databaseUrl: process.env.DATABASE_URL ?? "",
+  // Cloud SQL on Cloud Run: /cloudsql/<PROJECT:REGION:INSTANCE>/.s.PGSQL.5432 (connects over the Unix socket).
+  databaseSocketPath: process.env.DATABASE_SOCKET_PATH ?? "",
   webhookSecret: process.env.WEBHOOK_SECRET ?? "",
   // "Sign in with GitHub" (OAuth App). Callback: PUBLIC_URL/auth/github/callback
   githubClientId: process.env.GITHUB_CLIENT_ID ?? "",
@@ -39,6 +41,9 @@ export const config = {
   maxInspectsPerTurn: Number(process.env.MAX_INSPECTS ?? 8),
   exhibitTimeoutSec: Number(process.env.EXHIBIT_TIMEOUT ?? 30),
 };
+
+/** "Sign in with GitHub" is configured. With it on, every trial belongs to (and is visible only to) the account that started it. */
+export const authEnabled = () => Boolean(config.githubClientId && config.githubClientSecret && config.sessionSecret);
 
 export function missingConfig(): string[] {
   const missing: string[] = [];

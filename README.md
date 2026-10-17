@@ -43,7 +43,7 @@ ngrok http 3000           # put the https URL in PUBLIC_URL
 bun src/server.ts         # http://localhost:3000
 ```
 
-Start a trial from the docket page by pasting a PR URL, or by HTTP request:
+Start a trial from the docket page by pasting a PR URL, or by HTTP request (only without GitHub sign-in configured; with it, trials need a signed-in session):
 `bun -e 'console.log(await (await fetch("http://localhost:3000/api/trials",{method:"POST",body:JSON.stringify({prUrl:"https://github.com/OWNER/REPO/pull/1"})})).json())'`
 
 ### Storage (Postgres)
@@ -58,7 +58,9 @@ Signed-in users get:
 - **My PRs**: their open PRs across GitHub, with trial status chips. **Auto-trial** puts every new PR they open, and every new commit pushed to one, on trial within `POLL_INTERVAL_SEC`. PRs that existed before sign-in are left alone; "Run on all my open PRs" covers those.
 - **My repos**: public and private repositories. Expand one to see its open PRs, put any of them on trial, or try them all (capped at 10).
 - Results stay in the UI. Signed-in trials never comment on or set statuses on GitHub.
-- Trials on **private** repos are visible only to the user who ran them, and are recorded in gitignored `data/recordings/`. Sessions, including OAuth tokens, are stored AES-256-GCM-encrypted in `data/sessions.json`. Tokens never reach the browser or the sandboxes.
+- **Every trial is visible only to the GitHub account that started it**, on public and private repos alike. Webhook trials belong to the user whose push or `/court` comment triggered them. Starting a trial from the UI requires signing in. Local CLI trials belong to `TRIAL_OWNER=<login>` if set.
+- Without sign-in configured, the server has no accounts: public-repo trials are shown to everyone and private-repo trials to no one.
+- Recordings (`recordings/`, `data/recordings/`) are gitignored. Sessions, including OAuth tokens, are stored AES-256-GCM-encrypted in `data/sessions.json`. Tokens never reach the browser or the sandboxes.
 
 Use an ngrok static domain (`ngrok http --url=<name>.ngrok-free.app 3000`) so the OAuth callback URL never changes.
 
@@ -71,5 +73,32 @@ Repo → Settings → Webhooks → Add:
 
 Commenting `/court` on a PR re-runs the trial.
 
+## Deploy to Cloud Run
+The whole app (UI, API, trial engine, watcher) ships as one container. Live trials and the queue are in memory, so run **exactly one always-on instance**.
+
+```bash
+gcloud auth login && gcloud config set project <PROJECT>
+gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
+
+# one Secret Manager secret per sensitive value, e.g.
+printf %s "$GEMINI_API_KEY" | gcloud secrets create gemini-api-key --data-file=-
+# ...createos-sandbox-api-key, github-token, github-client-secret-prod, session-secret, webhook-secret, database-url
+gcloud projects add-iam-policy-binding <PROJECT> \
+  --member serviceAccount:<PROJECT_NUMBER>-compute@developer.gserviceaccount.com --role roles/secretmanager.secretAccessor
+
+gcloud run deploy agent-courtroom --source . --region <REGION> \
+  --min-instances 1 --max-instances 1 --no-cpu-throttling --cpu 1 --memory 1Gi \
+  --timeout 3600 --session-affinity --allow-unauthenticated \
+  --set-env-vars NODE_ENV=production,GITHUB_CLIENT_ID=<prod OAuth app client id> \
+  --set-secrets GEMINI_API_KEY=gemini-api-key:latest,CREATEOS_SANDBOX_API_KEY=createos-sandbox-api-key:latest,GITHUB_TOKEN=github-token:latest,GITHUB_CLIENT_SECRET=github-client-secret-prod:latest,SESSION_SECRET=session-secret:latest,WEBHOOK_SECRET=webhook-secret:latest,DATABASE_URL=database-url:latest
+
+# then point PUBLIC_URL at the printed https://...run.app URL
+gcloud run services update agent-courtroom --region <REGION> --update-env-vars PUBLIC_URL=<url>
+```
+
+- **Cloud SQL:** add `--add-cloudsql-instances <PROJECT:REGION:INSTANCE>` and `--update-env-vars DATABASE_SOCKET_PATH=/cloudsql/<PROJECT:REGION:INSTANCE>/.s.PGSQL.5432` to connect over the private socket.
+- Use a separate GitHub OAuth app for production (callback `<url>/auth/github/callback`), and point the repo webhook at `<url>/api/github/webhook`.
+- The instance is billed while it runs. Delete it with `gcloud run services delete agent-courtroom --region <REGION>`.
+
 ## Layout
-`src/server.ts` (HTTP, SSE, webhook) · `trial.ts` (orchestrator) · `counsel.ts` (prosecutor/defender tool loop) · `judge.ts` · `clerk.ts` · `bailiff.ts` (sandbox setup) · `courthouse.ts` (CreateOS SDK) · `llm.ts` (Gemini Interactions API) · `github.ts` · `render.ts` (PR comment) · `public/` (docket + courtroom UI) · `recordings/` (every trial, replayable)
+`src/server.ts` (HTTP, SSE, webhook, OAuth) · `trial.ts` (orchestrator) · `counsel.ts` (prosecutor/defender tool loop) · `judge.ts` · `clerk.ts` · `bailiff.ts` (sandbox setup) · `courthouse.ts` (CreateOS SDK) · `llm.ts` (Gemini) · `github.ts` · `auth.ts` · `watcher.ts` (auto-trial) · `store.ts` (Postgres / files) · `render.ts` (PR comment) · `ui/` (React docket + courtroom) · `Dockerfile` (Cloud Run)

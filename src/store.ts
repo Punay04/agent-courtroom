@@ -1,6 +1,6 @@
 import { SQL } from "bun";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { config } from "./config";
+import { authEnabled, config } from "./config";
 import { PRIVATE_RECORDINGS, PUBLIC_RECORDINGS, canView, listRecordings, readRecording, summarize, type TrialSummary } from "./events";
 import type { PRInfo, StampedEvent, TrialSource, Verdict } from "./types";
 
@@ -123,8 +123,14 @@ class PgStore implements Store {
   private seqs = new Map<string, number>();
   private flushTimer: ReturnType<typeof setTimeout> | undefined;
 
-  constructor(url: string) {
-    this.sql = new SQL(url);
+  constructor(url: string, socketPath?: string) {
+    // Bun defaults to 10 pooled connections that never close when idle; several app processes (laptop, Cloud Run
+    // revisions during a rollout, scripts) then exhaust a small Postgres' max_connections.
+    this.sql = new SQL(url, {
+      max: Number(process.env.DB_POOL_MAX ?? 4),
+      idleTimeout: 30,
+      ...(socketPath ? { path: socketPath } : {}),
+    });
   }
 
   async init() {
@@ -238,10 +244,15 @@ class PgStore implements Store {
     while (this.chains.size) await Promise.all([...this.chains.values()]).then(() => this.chains.clear());
   }
 
+  /** SQL twin of canView (events.ts): the viewer's own trials when sign-in is on, else public-repo trials. */
+  private viewable(login: string | undefined) {
+    return authEnabled() ? this.sql`requested_by = ${login ?? ""}` : this.sql`visibility = 'public'`;
+  }
+
   async listTrials(login: string | undefined, limit = 200) {
     const rows = await this.sql`
       select id, pr, status, headline, started_at, requested_by, source, visibility from trials
-      where visibility = 'public' or requested_by = ${login ?? ""}
+      where ${this.viewable(login)}
       order by started_at desc limit ${limit}`;
     return rows.map(rowToSummary);
   }
@@ -262,7 +273,7 @@ class PgStore implements Store {
     const rows = await this.sql`
       select distinct on (pr_url) id, pr, status, headline, started_at, requested_by, source, visibility from trials
       where pr_url = any(${this.sql.array(urls, "TEXT")})
-        and (visibility = 'public' or requested_by = ${login ?? ""})
+        and ${this.viewable(login)}
       order by pr_url, started_at desc`;
     for (const r of rows) {
       const s = rowToSummary(r);
@@ -290,4 +301,6 @@ class PgStore implements Store {
   }
 }
 
-export const store: Store = config.databaseUrl ? new PgStore(config.databaseUrl) : new FileStore();
+export const store: Store = config.databaseUrl
+  ? new PgStore(config.databaseUrl, config.databaseSocketPath || undefined)
+  : new FileStore();

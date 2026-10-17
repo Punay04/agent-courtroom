@@ -35,5 +35,6 @@ report.[0-9]_.[0-9]_.[0-9]_.[0-9]_.json
 # Finder (MacOS) folder config
 .DS_Store
 
-# sessions (encrypted) and private-repo trial recordings
+# sessions (encrypted) and trial recordings; each trial is private to the user who ran it
 data/
+recordings/

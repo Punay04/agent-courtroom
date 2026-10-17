@@ -35,6 +35,7 @@ function timeLabel(stamp?: number) {
 
 function Docket() {
   const { me, authEnabled, loaded } = useMe();
+  // With sign-in on, trials belong to accounts: a signed-out visitor has none to see and can't start one.
   const signedOut = loaded && authEnabled && !me;
   const [rows, setRows] = useState<Row[] | null>(null);
   const [url, setUrl] = useState("");
