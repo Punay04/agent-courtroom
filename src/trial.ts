@@ -1,5 +1,5 @@
 import type { Sandbox } from "@nodeops-createos/sandbox";
-import { prepareSandbox, runTestSuite } from "./bailiff";
+import { prepareSandbox, runTestSuite, uploadCase } from "./bailiff";
 import { fileCharges } from "./clerk";
 import { config } from "./config";
 import { runCounsel, type CaseContext } from "./counsel";
@@ -162,9 +162,9 @@ export async function conductTrial(
     void chargeSheet.catch(() => {});
 
     status("Summoning two CreateOS micro-VMs…");
-    // CreateOS sandbox names max out at 22 chars.
-    const sbName = (side: string) => `court-${id.slice(-12)}-${side}`;
-    const created = await Promise.allSettled([createSandbox(sbName("p")), createSandbox(sbName("d"))]);
+    // createSandbox keeps the last 11 chars of the label, so trim the id here to keep the side visible.
+    const label = (side: string) => `${id.slice(-9)}-${side}`;
+    const created = await Promise.allSettled([createSandbox(label("p")), createSandbox(label("d"))]);
     p = created[0].status === "fulfilled" ? created[0].value : undefined;
     d = created[1].status === "fulfilled" ? created[1].value : undefined;
     if (!p || !d) {
@@ -172,7 +172,9 @@ export async function conductTrial(
       throw new Error(`Could not create sandboxes: ${why.join("; ")}`);
     }
     status(`Sandboxes ready: prosecution ${p.id}, defense ${d.id}. Unpacking the case files and installing dependencies…`);
-    const [prepP] = await Promise.all([prepareSandbox(p, { base, head }, changedFiles), prepareSandbox(d, { base, head }, changedFiles)]);
+    // Uploads go one at a time to keep memory down; unpacking and installing, the slow part, run in parallel.
+    for (const sb of [p, d]) await uploadCase(sb, { base, head });
+    const [prepP] = await Promise.all([prepareSandbox(p, changedFiles), prepareSandbox(d, changedFiles)]);
     const stack = prepP.stack;
     status(`Detected ${stack.kind}${stack.manager ? ` (${stack.manager})` : ""}. Running the existing tests on base and head (Exhibit 0: ${stack.testCommand ?? "no test command found"})…`);
     const tests = await Promise.all([runTestSuite(p, "base", stack), runTestSuite(d, "head", stack)]);

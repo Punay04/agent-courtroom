@@ -13,7 +13,7 @@ if (missing.length) {
 async function sandboxes() {
   console.log("[createos] creating 2 sandboxes in parallel…");
   const t0 = Date.now();
-  const [a, b] = await Promise.all([createSandbox("court-smoke-a"), createSandbox("court-smoke-b")]);
+  const [a, b] = await Promise.all([createSandbox("smoke-a"), createSandbox("smoke-b")]);
   console.log(`[createos] ready in ${Date.now() - t0}ms: ${a.id}, ${b.id}`);
   try {
     const r = await exec(a, `python3 --version; for i in 1 2 3; do echo tick $i; sleep 0.3; done; python3 -m pip --version`, {

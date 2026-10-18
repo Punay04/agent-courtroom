@@ -1,3 +1,5 @@
+import { hostname } from "node:os";
+
 // Bun loads .env automatically.
 const port = Number(process.env.PORT ?? 3000);
 
@@ -31,6 +33,9 @@ export const config = {
   stream: process.env.LLM_STREAM !== "0",
   shape: process.env.SANDBOX_SHAPE ?? "s-1vcpu-1gb",
   rootfs: process.env.SANDBOX_ROOTFS ?? "devbox:1",
+  // Identifies this copy of the server in sandbox names so it reaps only its own (courthouse.ts).
+  // Cloud Run sets K_SERVICE, which stays the same across revisions; elsewhere it's the machine.
+  sandboxTag: process.env.SANDBOX_TAG || process.env.K_SERVICE || hostname(),
   // Empty SANDBOX_EGRESS means allow-all (CreateOS semantics). Default: package registries only.
   egress: (
     process.env.SANDBOX_EGRESS ??

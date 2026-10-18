@@ -10,11 +10,19 @@ const keepTail = (s: string, n = OUTPUT_CAP) => (s.length > n ? s.slice(-n) : s)
 export const tail = (s: string, n: number) => (s.length > n ? `…[${s.length - n} chars cut]\n` + s.slice(-n) : s);
 export const shq = (s: string) => `'${s.replace(/'/g, `'\\''`)}'`;
 
-export async function createSandbox(name: string): Promise<Sandbox> {
+/**
+ * Every sandbox name starts with this server's tag, so reapOrphans only touches its own. The old bare "court-" prefix
+ * let any server sharing the CreateOS key (a laptop, say) destroy production's live trials when it booted. The word
+ * changed too, so servers still running that old reaper leave these alone.
+ */
+const PREFIX = `trial-${Bun.hash(config.sandboxTag).toString(36).padStart(4, "0").slice(-4)}-`;
+
+/** CreateOS names max out at 22 chars and the prefix takes 11, so `label` gets the other 11. */
+export async function createSandbox(label: string): Promise<Sandbox> {
   return box().createSandbox({
     shape: config.shape,
     rootfs: config.rootfs,
-    name,
+    name: PREFIX + label.slice(-11),
     egress: config.egress.length ? config.egress : undefined,
   });
 }
@@ -24,13 +32,13 @@ export async function destroySandbox(sb: Sandbox | undefined): Promise<void> {
   await sb.destroy().catch((e) => console.warn(`[courthouse] destroy ${sb.id} failed:`, e?.message ?? e));
 }
 
-/** Destroy sandboxes left behind by a crashed server so they don't eat the concurrency cap. */
+/** Destroy sandboxes this server left behind when it crashed or was replaced, so they don't eat the concurrency cap. */
 export async function reapOrphans(): Promise<number> {
   let reaped = 0;
   for (const status of ["running", "creating"] as const) {
     const list = await box().listSandboxes({ status }).catch(() => []);
     for (const sb of list) {
-      if (sb.name?.startsWith("court-")) {
+      if (sb.name?.startsWith(PREFIX)) {
         await destroySandbox(sb);
         reaped++;
       }

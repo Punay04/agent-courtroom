@@ -1,0 +1,59 @@
+{
+  "version": 4,
+  "project": {
+    "catalog": "prod",
+    "initializedAt": "2026-10-17T23:55:35.329Z",
+    "merchantDisplayName": null,
+    "merchantId": "acct_1T8glE5tVxUcCHMP",
+    "projectId": "project_61Vb5PDSFPLQIa4YE16UI4ia9J8RmahxPxqwiQSaGNGa",
+    "projectName": "agent-courtroom"
+  },
+  "providers": {
+    "blaxel": {
+      "accountRequestId": "facctrq_61Vb5QyEha9dzxzpX16UI4ia9J8RmahxPxqwiQSaGU0W",
+      "configuration": {},
+      "linkedAt": "2026-10-17T23:57:32.976Z",
+      "providerId": "prvdr_61UnoL4ZPCBLxqCQW5WJU",
+      "providerName": "Blaxel",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-17T23:57:32.976Z",
+      "status": "complete"
+    },
+    "createos": {
+      "accountRequestId": "facctrq_61Vb5PN3eXbJmc5ip16UI4ia9J8RmahxPxqwiQSaG8iG",
+      "configuration": {},
+      "linkedAt": "2026-10-17T23:55:45.926Z",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "redirectUrl": null,
+      "requestedAt": "2026-10-17T23:55:45.925Z",
+      "status": "complete"
+    }
+  },
+  "resources": {
+    "createos-plan": {
+      "configuration": {},
+      "createdAt": "2026-10-18T00:00:22.670Z",
+      "lastRevealedAt": "2026-10-18T00:00:23.324Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "createos-plan",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "resourceId": "fres_61Vb5Tp8g8FiB7PLf16UI4ia9J8RmahxPxqwiQSaGARs",
+      "serviceId": "free"
+    },
+    "createos-project": {
+      "configuration": {},
+      "createdAt": "2026-10-18T00:00:25.692Z",
+      "lastRevealedAt": "2026-10-18T00:00:26.297Z",
+      "lastStatus": "complete",
+      "livemode": true,
+      "name": "createos-project",
+      "providerId": "prvdr_61V0eGC6sUPXoATb051se",
+      "providerName": "createos",
+      "resourceId": "fres_61Vb5TsVd06hnnoa316UI4ia9J8RmahxPxqwiQSaG53g",
+      "serviceId": "project"
+    }
+  }
+}

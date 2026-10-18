@@ -1,0 +1,25 @@
+{
+  "version": 2,
+  "providers": {
+    "blaxel": {
+      "name": "Blaxel"
+    },
+    "createos": {
+      "name": "createos"
+    }
+  },
+  "resources": {
+    "createos-plan": {
+      "livemode": true,
+      "name": "createos-plan",
+      "providerName": "createos",
+      "serviceId": "free"
+    },
+    "createos-project": {
+      "livemode": true,
+      "name": "createos-project",
+      "providerName": "createos",
+      "serviceId": "project"
+    }
+  }
+}

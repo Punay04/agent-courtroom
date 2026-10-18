@@ -112,17 +112,18 @@ true`,
   return { kind, manager, testCommand, framework, detected: [...detected], nodeTestScript, installScript };
 }
 
-/** No LLM here: lay out /workspace/{base,head}, detect the stack, install deps, report what tools exist. */
-export async function prepareSandbox(
-  sb: Sandbox,
-  tarballs: { base: ArrayBuffer; head: ArrayBuffer },
-  changedFiles: string[],
-): Promise<{ tools: string; installLog: string; stack: StackInfo }> {
+/**
+ * Copy both checkouts' archives into the sandbox, one after the other. fetch holds extra memory for every upload
+ * in flight, so callers should also upload to one sandbox at a time (4 in parallel ran the 1 GiB server out of memory).
+ */
+export async function uploadCase(sb: Sandbox, tarballs: { base: ArrayBuffer; head: ArrayBuffer }): Promise<void> {
   await exec(sb, "mkdir -p /workspace/base /workspace/head /tmp/court", { timeoutSec: 20 });
-  await Promise.all([
-    upload(sb, "/tmp/court/base.tgz", tarballs.base),
-    upload(sb, "/tmp/court/head.tgz", tarballs.head),
-  ]);
+  await upload(sb, "/tmp/court/base.tgz", tarballs.base);
+  await upload(sb, "/tmp/court/head.tgz", tarballs.head);
+}
+
+/** No LLM here: unpack the archives from uploadCase into /workspace/{base,head}, detect the stack, install deps, report what tools exist. */
+export async function prepareSandbox(sb: Sandbox, changedFiles: string[]): Promise<{ tools: string; installLog: string; stack: StackInfo }> {
   const extract = await exec(
     sb,
     "tar xzf /tmp/court/base.tgz -C /workspace/base --strip-components=1 && tar xzf /tmp/court/head.tgz -C /workspace/head --strip-components=1",

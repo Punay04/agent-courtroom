@@ -97,6 +97,7 @@ gcloud run services update agent-courtroom --region <REGION> --update-env-vars P
 ```
 
 - **Repo size:** each trial holds both source archives in memory, so repos whose compressed archive is over `MAX_REPO_MB` (default 50) are refused as a mistrial before any sandbox starts. Raise it only with more instance memory: the server can hold 2 × `MAX_CONCURRENT_TRIALS` archives at once.
+- **Sandbox cleanup:** on boot the server destroys sandboxes it left behind (a crash, or the previous revision). Sandbox names carry a tag for each copy of the server (the Cloud Run service name, else the machine's hostname, or `SANDBOX_TAG`), so a laptop sharing the CreateOS key never destroys production's live trials.
 - **Cloud SQL:** add `--add-cloudsql-instances <PROJECT:REGION:INSTANCE>` and `--update-env-vars DATABASE_SOCKET_PATH=/cloudsql/<PROJECT:REGION:INSTANCE>/.s.PGSQL.5432` to connect over the private socket.
 - Use a separate GitHub OAuth app for production (callback `<url>/auth/github/callback`), and point the repo webhook at `<url>/api/github/webhook`.
 - The instance is billed while it runs. Delete it with `gcloud run services delete agent-courtroom --region <REGION>`.

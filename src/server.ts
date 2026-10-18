@@ -273,6 +273,6 @@ if (authEnabled()) {
 }
 if (process.env.CREATEOS_SANDBOX_API_KEY) {
   reapOrphans()
-    .then((n) => n && console.log(`🧹 reaped ${n} orphaned court-* sandbox(es)`))
+    .then((n) => n && console.log(`🧹 reaped ${n} sandbox(es) this server left behind`))
     .catch((e) => console.warn("[courthouse] reap failed:", e?.message ?? e));
 }
